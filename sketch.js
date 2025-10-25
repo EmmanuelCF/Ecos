@@ -1,66 +1,73 @@
 
 let input;
-
-let myQuestion = "¿QUÉ ES LO QUE MÁS TE PREOCUPA?";
-let questionSize = 100;//esta es la altura
-let widthQuestion = 0;
-
+let myQuestion = "¿QUÉ TE GUSTARÍA QUE ALGUIEN POR FIN ENTENDIERA?";
+let questionSize = 60;
 let lineasGeneradas = 0;
-let lineasGeneradasInput = 0;
+let inputFontSize = 40;
+let points = [];
+let savedText = "";
+let textAreaAndQuestionSize = 0;
 
-let inputFontSize = 100;
+let tamanoFuente = 60;
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
 
-  miTextarea  = createElement('textarea');
-  miTextarea.style('background-color', '#353535');
+  miTextarea = createElement('textarea');
+  miTextarea.style('background-color', 'rgba(0,0,0,0)');
   miTextarea.style('caret-shape', 'block');
-  miTextarea.style('caret-color', '#e6e6e6'); // Color del cursor
+  miTextarea.style('caret-color', 'rgba(147,147,147,0)');
   miTextarea.style('outline', 'none');
   miTextarea.style('border', 'none');
   miTextarea.style('border-radius', '0px');
   miTextarea.style('padding', '10px');
-  miTextarea.style('font-size', '70px');
-  miTextarea.style('color', '#ffffff');
-  miTextarea.style('font-family', 'CalSans-Regular');
+  miTextarea.style('font-size', inputFontSize + 'px');
+  miTextarea.style('color', 'rgba(0,0,0,0)'); // Transparente - bien!
+  miTextarea.style('font-weight', 'bold');
+  miTextarea.style('font-family', 'Montserrat Black, sans-serif');
 
-  // Capturar la tecla Enter
-  miTextarea.elt.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-      e.preventDefault(); // Evita el salto de línea
-      hacerAlgoConEnter();
-    }
+  // IMPORTANTE: Usar input para detectar cada cambio de texto
+  miTextarea.elt.addEventListener('input', function() {
+    savedText = miTextarea.value(); // Actualizar el texto
+    inputToText(); // Regenerar los puntos
   });
 
+  miTextarea.elt.focus();
 }
 
 function preload() {
-  // Carga tu fuente personalizada (debes tener el archivo en tu proyecto)
-  customFont = loadFont('assets/fonts/CalSans-Regular.ttf');
-
+  customFont = loadFont('assets/fonts/Montserrat-Black.ttf');
 }
 
 function draw() {
-  background('#f0f0f0');
+  background('#000000');
 
-  // TEXTO PRINCIPAL
-  textFont(customFont)
+  // TEXTO PRINCIPAL (pregunta)
+  textFont(customFont);
   textAlign(CENTER, TOP);
   textSize(questionSize);
-  fill('#353535');
+  fill('#8f8f8f');
 
   let lineasInfo = obtenerLineasTexto(myQuestion, width);
   lineasGeneradas = lineasInfo.length;
+  text(myQuestion, 0, 0, width, height);
 
-  text(myQuestion, 0, 0, width, height );
-
-  miTextarea.position((width / 4) - (width/4)/4, questionSize * lineasGeneradas + questionSize - 20);
+  // Posicionar textarea (transparente)
+  miTextarea.position((width / 4) - (width / 4) / 4, questionSize * lineasGeneradas + questionSize - 20);
   miTextarea.size(width * 0.66, inputFontSize * .2);
-  miTextarea.style('height', miTextarea.elt.scrollHeight + 'px');
-  miTextarea.elt.focus();
 
-  //text(widthQuestion, width / 2, questionSize * lineasGeneradas + 40);
+  textAreaAndQuestionSize = questionSize * lineasGeneradas + questionSize;
+
+  // Dibujar PUNTOS con movimiento (esto es lo que se ve)
+  for (let i = 0; i < points.length; i++) {
+    let punto = points[i];
+    let movX = sin(frameCount * 0.1 + i * 0.2) * 6;
+    let movY = cos(frameCount * 0.08 + i * 0.15) * 6;
+
+    fill(255, 255, 0);
+    noStroke();
+    ellipse(punto.x + movX, punto.y + movY, 5, 5);
+  }
 }
 
 function obtenerLineasTexto(texto, anchoMaximo) {
@@ -93,10 +100,57 @@ function obtenerLineasTexto(texto, anchoMaximo) {
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
+  inputToText();
 }
 
 
-function hacerAlgoConEnter() {
-  miTextarea.style('background-color', '#cc0000');
-  // Aquí pones lo que quieres que haga el Enter
+function inputToText() {
+  let anchoMaximo = width * 0.65;
+
+  // Dividir el texto en líneas
+  let lineas = dividirEnLineas(savedText, anchoMaximo, tamanoFuente);
+  points = [];
+
+  // Generar puntos para cada línea
+  for (let i = 0; i < lineas.length; i++) {
+    let posY = textAreaAndQuestionSize + (i * tamanoFuente * 1.2);
+
+    let puntosLinea = customFont.textToPoints(lineas[i], width/5, posY, tamanoFuente,
+      {
+        sampleFactor: 0.15,
+        simplifyThreshold: 0
+      }
+    );
+
+    points = points.concat(puntosLinea);
+  }
+}
+
+// Función para dividir texto en líneas
+function dividirEnLineas(texto, anchoMaximo, tamanoFuente) {
+  textSize(tamanoFuente); // ¡Importante! Establecer el tamaño para textWidth()
+
+  let palabras = texto.split(' ');
+  let lineas = [];
+  let lineaActual = '';
+
+  for (let i = 0; i < palabras.length; i++) {
+    let palabra = palabras[i];
+    let pruebaLinea = lineaActual + (lineaActual ? ' ' : '') + palabra;
+
+    if (textWidth(pruebaLinea) <= anchoMaximo) {
+      lineaActual = pruebaLinea;
+    } else {
+      if (lineaActual) {
+        lineas.push(lineaActual);
+      }
+      lineaActual = palabra;
+    }
+  }
+
+  if (lineaActual) {
+    lineas.push(lineaActual);
+  }
+
+  return lineas;
 }
