@@ -10,6 +10,8 @@ let textAreaAndQuestionSize = 0;
 
 let tamanoFuente = 60;
 
+let dotSize = 4;
+
 function setup() {
   createCanvas(windowWidth, windowHeight);
 
@@ -59,7 +61,7 @@ function draw() {
   textAreaAndQuestionSize = questionSize * lineasGeneradas + questionSize;
 
   // Dibujar PUNTOS con movimiento (esto es lo que se ve)
-  for (let i = 0; i < points.length; i++) {
+  /*for (let i = 0; i < points.length; i++) {
     let punto = points[i];
     let movX = sin(frameCount * 0.1 + i * 0.2) * 6;
     let movY = cos(frameCount * 0.08 + i * 0.15) * 6;
@@ -67,6 +69,18 @@ function draw() {
     fill(255, 255, 0);
     noStroke();
     ellipse(punto.x + movX, punto.y + movY, 5, 5);
+  }*/
+
+  for(let i = 0; i < points.length; i++){
+    let x = points[i].x;
+    let y = points[i].y;
+
+    // Tamaño basado en la posición (no cambia entre frames)
+    let dotSize = map((x + y) % 20, 0, 20, 2, 14);
+
+    fill(255, 255, 0);
+    noStroke();
+    ellipse(x, y, dotSize);
   }
 }
 
@@ -106,6 +120,7 @@ function windowResized() {
 
 function inputToText() {
   let anchoMaximo = width * 0.65;
+
 
   // Dividir el texto en líneas
   let lineas = dividirEnLineas(savedText, anchoMaximo, tamanoFuente);
