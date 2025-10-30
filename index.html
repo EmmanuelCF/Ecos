@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interacción y Prototipos</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.5.0"></script>
+    <!-- Cambiamos ml5 por face-api.js -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -23,16 +24,15 @@
             height: 100vh;
             position: relative;
         }
+        /* Ocultar el video de la cámara */
+        .p5Canvas {
+            display: block;
+        }
     </style>
 </head>
 <body>
 <div id="canvas-container"></div>
 
-<script src="js/QuestionManager.js"></script>
-<script src="js/InputManager.js"></script>
-<script src="js/UIManager.js"></script>
-<script src="js/ResponseProcessor.js"></script>
-<script src="js/TextManager.js"></script>
 <script src="js/TextoDistorsionador.js"></script>
 <script src="sketch.js"></script>
 </body>
