@@ -3,37 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interacción y Prototipos</title>
+    <title>Distorsión Textual - Portada</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.5.0"></script>
-    <!-- Cambiamos ml5 por face-api.js -->
-    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <style>
         body {
             margin: 0;
             padding: 0;
-            background: #2c3e50;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            font-family: Arial, sans-serif;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
         }
-        #canvas-container {
+        #portada-container {
             width: 100vw;
             height: 100vh;
             position: relative;
         }
-        /* Ocultar el video de la cámara */
+        /* Ocultar el botón de p5.js por defecto, lo controlaremos desde el sketch */
         .p5Canvas {
             display: block;
         }
     </style>
 </head>
 <body>
-<div id="canvas-container"></div>
+<div id="portada-container"></div>
 
-<script src="js/TextoDistorsionador.js"></script>
-<script src="sketch.js"></script>
+<script src="sketch-portada.js"></script>
 </body>
 </html>

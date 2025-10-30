@@ -34,7 +34,6 @@ let estadoActual = "escribiendo";
 let ruidoIntensidad = 15;
 let puntosBase = [];
 let mouseCerca = false;
-let mensajesExtra = [];
 
 // VARIABLES PARA DETECCIÓN DE ROSTRO (FACE-API.JS)
 let video;
@@ -334,24 +333,6 @@ function draw() {
     }
   }
 
-  // Mostrar mensajes extra en pantalla
-  if (mostrarPuntos && mensajesExtra.length > 0) {
-    textFont(customFont);
-    textAlign(CENTER);
-    textSize(20);
-    fill(255, 255, 0, puntosAlpha);
-
-    let yPos = textAreaAndQuestionSize + (points.length > 0 ? points[points.length-1].y + 100 : 400);
-
-    text("💡 MENSAJES EXTRA:", width/2, yPos);
-
-    textSize(16);
-    fill(255, 200);
-    mensajesExtra.forEach((msg, index) => {
-      text(`${index + 1}. ${msg}`, width/2, yPos + 40 + (index * 30));
-    });
-  }
-
   // Mostrar estado actual (indicar si está usando nariz)
   fill(255);
   textSize(16);
@@ -536,11 +517,7 @@ async function generarTextosConIA() {
       todosLosTextos[1] + " • " + textoOriginal + " • " +
       todosLosTextos[2];
 
-    // Los últimos 2 son los mensajes "extra" que se mostrarán abajo
-    mensajesExtra = [todosLosTextos[3], todosLosTextos[4]];
-
     console.log("🎲 Texto principal combinado:", textoCombinado);
-    console.log("💡 Mensajes extra:", mensajesExtra);
 
     generarPuntosConRuido(textoCombinado);
 
@@ -663,7 +640,6 @@ function resetearInterfaz() {
   puntosAlpha = 0;
   points = [];
   puntosBase = [];
-  mensajesExtra = [];
   miTextarea.value('');
   miTextarea.elt.focus();
 
