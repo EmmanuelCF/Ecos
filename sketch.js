@@ -160,22 +160,17 @@ function draw() {
     for (let i = 0; i < points.length; i++) {
       let base = puntosBase[i];
 
-      // Calcular distancia del mouse a la posición ORIGINAL del punto (no la actual con ruido)
       let distanciaMouse = dist(mouseX, mouseY, base.x, base.y);
+      let radioInfluencia = 200;
 
-      // Radio de influencia del mouse (puedes ajustar este valor)
-      let radioInfluencia = 400;
-
-      // Si el punto está dentro del radio de influencia, reducir ruido gradualmente
-      // Si está fuera del radio, mantener ruido completo
       let factorRuido = 1.0;
 
       if (distanciaMouse < radioInfluencia) {
-        // Mapear: distancia 0 → factorRuido 0, distancia radioInfluencia → factorRuido 1
-        factorRuido = map(distanciaMouse, 0, radioInfluencia, 0, 1);
+        // Usar curva exponencial para que se calme más rápido cerca del mouse
+        let t = map(distanciaMouse, 0, radioInfluencia, 0, 1);
+        factorRuido = pow(t, 2); // Cuadrático - más drástico cerca del mouse
       }
 
-      // Aplicar ruido sin() a las posiciones, multiplicado por el factor de ruido
       let ruidoX = sin(frameCount * 0.05 + base.offsetX) * intensidadActual * factorRuido;
       let ruidoY = cos(frameCount * 0.03 + base.offsetY) * intensidadActual * factorRuido;
 
@@ -248,6 +243,15 @@ async function iniciarProcesoCompleto() {
 
   estadoActual = "procesando";
   console.log("🤖 Procesando con IA...");
+
+  // ✅ HACER DESAPARECER EL BOTÓN DURANTE EL PROCESAMIENTO
+  botonEnviar.style('opacity', '0');
+  botonEnviar.style('transition', 'opacity 0.5s');
+
+  // Esperar un poco para que se complete la transición
+  await new Promise(resolve => setTimeout(resolve, 500));
+  botonEnviar.hide();
+
   await generarTextosConIA();
 
   estadoActual = "mostrandoPuntos";
