@@ -6,153 +6,142 @@
   }
 
   async inicializar() {
-    console.log("✅ Sistema de reglas cargado");
+    console.log("✅ Sistema listo al 100");
     return true;
   }
 
   inicializarBancosCompletos() {
-    // BANCOS COMPLETOS AMPLIADOS con temas actuales
+    // BANCOS NEUTRAL MEXICANO
     this.adjetivos = {
-      positivo: ["maravilloso", "increíble", "fantástico", "extraordinario", "excepcional", "perfecto", "ideal", "sublime", "esperanzador", "transformador", "inspirador", "revolucionario"],
-      negativo: ["terrible", "horrible", "espantoso", "pésimo", "deplorable", "desastroso", "indignante", "insoportable", "traumático", "devastador", "catastrófico", "apocalíptico", "dantesco"],
-      extremo: ["alucinante", "electrizante", "apabullante", "devastador", "catastrófico", "espectacular", "inolvidable", "surrealista", "distópico", "postapocalíptico", "kafkiano", "orwelliano"],
-      superlativo: ["único", "inimaginable", "increíble", "extraordinario", "excepcional", "colosal", "monumental", "épico", "legendario", "histórico", "definitivo", "absoluto"],
-      politico: ["polarizante", "divisivo", "controversial", "ideológico", "partidista", "manipulador", "populista", "autoritario"]
+      positivo: ["increíble", "fantástico", "excelente", "maravilloso", "impresionante", "extraordinario", "perfecto", "espectacular"],
+      negativo: ["terrible", "horrible", "pésimo", "decepcionante", "fatal", "desastroso", "indignante", "insoportable"],
+      extremo: ["alucinante", "impactante", "brutal", "devastador", "catastrófico", "inolvidable", "surrealista"],
+      superlativo: ["único", "inimaginable", "colosal", "monumental", "histórico", "definitivo", "absoluto"],
+      politico: ["polarizante", "divisivo", "controversial", "manipulador", "populista"]
     };
 
     this.acciones = {
-      positiva: ["brilla con luz propia", "ilumina el camino", "transforma vidas", "supera expectativas", "cambia paradigmas", "une comunidades", "genera oportunidades", "construye futuro"],
-      negativa: ["arruina todo", "destroza ilusiones", "frustra esperanzas", "complica la existencia", "empaña la realidad", "divide sociedades", "genera caos", "destruye economías", "aumenta la desigualdad"],
-      intensa: ["conmueve hasta las lágrimas", "impacta profundamente", "remueve por dentro", "deja sin aliento", "marca un antes y un después", "cambia mentalidades", "cuestiona todo"],
-      dramatica: ["desgarra el alma", "conmociona hasta lo más profundo", "traspasa fronteras", "redefine conceptos", "cuestiona la humanidad", "revela verdades incómodas"],
-      politica: ["manipula masas", "controla narrativas", "divide países", "polariza sociedades", "genera conflictos", "altera democracias", "influencia elecciones"]
+      positiva: ["da esperanza", "cambia vidas", "supera expectativas", "une a la gente", "genera oportunidades", "mejora todo"],
+      negativa: ["arruina todo", "destroza ilusiones", "complica las cosas", "divide a la sociedad", "genera caos", "empeora la situación"],
+      intensa: ["conmueve hasta las lágrimas", "impacta profundamente", "marca un antes y después", "cambia mentalidades"],
+      dramatica: ["desgarra el alma", "conmociona a todos", "redefine todo", "revela verdades incómodas"],
+      politica: ["manipula a la gente", "controla la narrativa", "divide al país", "polariza a la sociedad"]
     };
 
     this.verbosIntensos = {
-      positivo: ["fascina", "apasiona", "entusiasma", "emociona", "deslumbra", "enamora", "empodera", "motiva", "inspira", "conecta"],
-      negativo: ["indigna", "desespera", "agobia", "atormenta", "frustra", "decepciona", "aterroriza", "trauma", "desilusiona", "enfurece"],
-      politico: ["manipula", "controla", "censura", "influencia", "polariza", "divide", "confronta", "radicaliza"]
+      positivo: ["impresiona", "emociona", "entusiasma", "motiva", "inspira", "sorprende"],
+      negativo: ["indigna", "desespera", "agobia", "frustra", "decepciona", "enfurece"],
+      politico: ["manipula", "controla", "censura", "polariza", "divide"]
     };
 
     this.contextos = {
-      negativo: ["en pleno siglo XXI", "con lo avanzada que está la sociedad", "en estas circunstancias", "en este mundo moderno", "en la era digital", "con toda la tecnología disponible", "en tiempos de supuesta paz"],
-      positivo: ["en medio de tanta belleza", "con tanta armonía alrededor", "en este contexto ideal", "en un mundo tan perfecto", "en esta era de oportunidades", "con tantas posibilidades"],
-      dramatico: ["en los momentos más cruciales", "cuando menos te lo esperas", "ante la mirada de todos", "en la quietud de la noche", "mientras el mundo mira", "en tiempo real"],
-      actual: ["con el conflicto en Medio Oriente", "en medio de la crisis climática", "con la inflación galopante", "durante las protestas sociales", "en esta era de desinformación", "con las redes sociales controlando todo"]
+      negativo: ["en estos tiempos", "con todo lo que pasa", "en la situación actual", "con la crisis que vivimos", "en medio de tanta incertidumbre"],
+      positivo: ["en medio de todo", "a pesar de las dificultades", "en estos momentos complicados", "cuando más lo necesitamos"],
+      dramatico: ["cuando menos lo esperas", "ante los ojos de todos", "en tiempo real", "en los momentos cruciales"],
+      actual: ["con la situación económica", "con la inseguridad", "con la crisis política", "con todo lo que está pasando", "en estos tiempos difíciles"]
     };
 
     this.caracteristicas = {
-      positiva: ["transmite paz interior", "eleva el espíritu", "inspira grandeza", "genera bienestar", "proporciona alegría", "crea comunidad", "fomenta empatía"],
-      unica: ["nunca antes vista", "revolucionaria en su enfoque", "innovadora en concepto", "pionera en su género", "disruptiva en esencia", "transformadora por naturaleza"],
-      seguridad: ["protege tus datos", "garantiza tu privacidad", "asegura tu bienestar", "defiende tus derechos", "protege tu familia"]
+      positiva: ["da tranquilidad", "mejora el ánimo", "genera confianza", "crea comunidad", "fomenta la unión"],
+      unica: ["nunca antes vista", "revolucionaria", "innovadora", "pionera", "diferente a todo"],
+      seguridad: ["protege tus datos", "cuida tu privacidad", "garantiza seguridad", "protege a tu familia"]
     };
 
-    // NUEVOS BANCOS TEMÁTICOS
+    // TEMAS ACTUALES CON LENGUAJE COTIDIANO
     this.temasActuales = {
-      israel: ["el conflicto en Gaza", "la situación en Jerusalén", "los ataques con cohetes", "la respuesta militar", "las tensiones geopolíticas", "la crisis humanitaria", "las negociaciones de paz"],
-      inseguridad: ["la ola de violencia", "los índices delictivos", "la sensación de miedo", "la falta de protección", "la crisis de seguridad", "los carteles y mafias", "la corrupción policial"],
-      politica: ["las elecciones controversiales", "los escándalos de corrupción", "la polarización social", "las fake news", "la manipulación mediática", "la censura en redes"],
-      economia: ["la inflación descontrolada", "el desempleo masivo", "la crisis económica", "la devaluación monetaria", "el aumento de precios"],
-      social: ["las protestas masivas", "la desigualdad creciente", "la migración forzada", "la crisis habitacional", "el acceso a la salud"]
+      israel: ["el conflicto en Medio Oriente", "la situación en Gaza", "las tensiones internacionales", "la crisis humanitaria"],
+      inseguridad: ["la violencia", "la delincuencia", "la falta de seguridad", "la crisis de seguridad"],
+      politica: ["las elecciones", "la corrupción", "la polarización", "las noticias falsas"],
+      economia: ["la inflación", "el desempleo", "la crisis económica", "el aumento de precios"],
+      social: ["las protestas", "la desigualdad", "la migración", "la crisis social"]
     };
 
     this.solucionesExageradas = {
-      seguridad: ["acabará con la delincuencia", "eliminará por completo la inseguridad", "devolverá la paz a las calles", "protegerá cada rincón del país"],
-      politica: ["resolverá todos los conflictos", "unirá al país dividido", "acabará con la corrupción", "restaurará la democracia"],
-      economica: ["solucionará la crisis económica", "creará millones de empleos", "controlará la inflación", "reactivará la economía"]
+      seguridad: ["acabará con la delincuencia", "devolverá la paz", "protegerá a todos", "eliminará la inseguridad"],
+      politica: ["resolverá los conflictos", "unirá al país", "acabará con la corrupción"],
+      economica: ["solucionará la crisis", "creará empleos", "controlará los precios"]
     };
 
     this.patronesDistorsion = {
       polarizar_negativo: [
-        "Realmente [verbo-intenso-negativo] cómo [sustantivo] [accion-negativa] [contexto-actual]",
+        "La verdad [verbo-intenso-negativo] cómo [sustantivo] [accion-negativa] [contexto-actual]",
         "No soporto que [sustantivo] sea tan [adjetivo-negativo] con [tema-actual]",
-        "[exclamacion-negativa] [sustantivo] es completamente [adjetivo-superlativo-negativo] en medio de [tema-urgente]",
+        "Es increíble cómo [sustantivo] es [adjetivo-superlativo-negativo] en medio de [tema-urgente]",
         "Es indignante que [sustantivo] [accion-negativa] mientras [situacion-dramatica]",
-        "Me resulta insufrible el [sustantivo] cuando [contexto-negativo] y [problema-social]",
-        "Es [adjetivo-politico] cómo [sustantivo] [accion-politica] en [contexto-actual]"
+        "Me molesta mucho el [sustantivo] cuando [contexto-negativo] y [problema-social]"
       ],
 
       polarizar_positivo: [
-        "[exclamacion-positiva] [sustantivo] es absolutamente [adjetivo-superlativo-positivo] a pesar de [problema-mundial]",
-        "Me [verbo-intenso-positivo] cuando [sustantivo] [accion-positiva] en estos tiempos difíciles",
-        "Es maravilloso cómo [sustantivo] logra [accion-positiva] incluso con [crisis-actual]",
-        "Realmente [verbo-intenso-positivo] el [sustantivo] que [caracteristica-positiva] en la era de [tema-moderno]",
-        "[exclamacion-positiva] no hay nada mejor que [sustantivo] [accion-positiva] cuando todo parece perdido"
+        "Qué [adjetivo-superlativo-positivo] es [sustantivo] a pesar de [problema-mundial]",
+        "Me [verbo-intenso-positivo] cuando [sustantivo] [accion-positiva] en estos tiempos",
+        "Es fantástico cómo [sustantivo] logra [accion-positiva] incluso con [crisis-actual]",
+        "Realmente [verbo-intenso-positivo] el [sustantivo] que [caracteristica-positiva] hoy en día",
+        "Qué bueno que [sustantivo] [accion-positiva] cuando todo parece complicado"
       ],
 
       distorsion_publicitaria: [
-        "¡ATENCIÓN! Descubre el secreto de [sustantivo] que [beneficio] y soluciona [problema-actual]",
-        "¡OFERTA EXCLUSIVA! [sustantivo] que [beneficio-exagerado] incluso en [crisis-contexto]",
-        "¿Cansado de [problema-actual]? [sustantivo] es la solución definitiva para [beneficio] en [situacion-urgente]",
-        "¡NO TE PIERDAS! [sustantivo] revolucionario que [caracteristica-unica] y enfrenta [desafio-mundial]",
-        "¡INCREÍBLE! [sustantivo] ahora con [mejora] que te [beneficio-emocional] y protege de [amenaza-actual]",
-        "¡URGENTE! [sustantivo] que [solucion-extrema] para [problema-social]"
+        "¡Oye! Descubre cómo [sustantivo] [beneficio] y soluciona [problema-actual]",
+        "¡No te lo pierdas! [sustantivo] que [beneficio-exagerado] incluso ahora",
+        "¿Cansado de [problema-actual]? [sustantivo] es la solución para [beneficio]",
+        "¡Mira! [sustantivo] revolucionario que [caracteristica-unica]",
+        "¡Increíble! [sustantivo] ahora con [mejora] que te [beneficio-emocional]"
       ],
 
       exagerar: [
-        "Es absolutamente [adjetivo-extremo] cómo [sustantivo] [accion-dramatica] en [contexto-dramatico]",
-        "No puedo creer lo [adjetivo-intenso] que es [sustantivo] cuando [contexto-dramatico] y [situacion-critica]",
-        "Es algo [adjetivo-hiperbolico] ver cómo [sustantivo] [accion-extrema] mientras [evento-mundial]",
-        "Me impacta profundamente que [sustantivo] sea tan [adjetivo-superlativo] en medio de [crisis-global]",
-        "Es una experiencia [adjetivo-extremo] cuando [sustantivo] [accion-intensa] durante [conflicto-actual]"
+        "Es totalmente [adjetivo-extremo] cómo [sustantivo] [accion-dramatica] [contexto-dramatico]",
+        "No puedo creer lo [adjetivo-intenso] que es [sustantivo] cuando [contexto-dramatico]",
+        "Es algo [adjetivo-hiperbolico] ver cómo [sustantivo] [accion-extrema] ahora",
+        "Me impacta que [sustantivo] sea tan [adjetivo-superlativo] en medio de [crisis-global]"
       ],
 
-      // NUEVO: Distorsión conspiranoica
       conspiracion: [
-        "¿Sabías que [sustantivo] está conectado con [conspiracion-comun]?",
+        "¿Te has dado cuenta que [sustantivo] está relacionado con [conspiracion-comun]?",
         "No es casualidad que [sustantivo] [accion-sospechosa] justo cuando [evento-sospechoso]",
-        "Los medios no te dicen que [sustantivo] realmente [verdad-oculta]",
-        "¿Quién se beneficia realmente con [sustantivo] que [accion-conveniente]?",
-        "Detrás de [sustantivo] hay [entidad-poderosa] que [accion-manipuladora]"
+        "No dicen que [sustantivo] realmente [verdad-oculta]",
+        "¿Quién gana realmente con [sustantivo] que [accion-conveniente]?"
       ]
     };
 
     this.exclamaciones = {
-      positiva: ["¡Increíble!", "¡Asombroso!", "¡Fantástico!", "¡Maravilloso!", "¡Impresionante!", "¡Brutal!", "¡Genial!", "¡Perfecto!"],
-      negativa: ["¡Horrible!", "¡Terrible!", "¡Qué desastre!", "¡No puede ser!", "¡Qué indignante!", "¡Escandaloso!", "¡Vergonzoso!", "¡Inaceptable!"],
-      urgencia: ["¡ALERTA!", "¡URGENTE!", "¡ATENCIÓN!", "¡IMPORTANTE!", "¡CRUCIAL!", "¡VITAL!"]
+      positiva: ["¡Increíble!", "¡Fantástico!", "¡Impresionante!", "¡Qué bien!", "¡Excelente!"],
+      negativa: ["¡Horrible!", "¡Terrible!", "¡Qué mal!", "¡Indignante!", "¡Inaceptable!"],
+      urgencia: ["¡Importante!", "¡Atención!", "¡Urgente!", "¡Ojo!"]
     };
 
     this.beneficios = [
-      "cambiará tu vida", "te hará más feliz", "solucionará todos tus problemas",
-      "te dará resultados inmediatos", "es la revolución que esperabas",
-      "te sorprenderá gratamente", "superará todas tus expectativas",
-      "te protegerá de los peligros actuales", "mejorará tu seguridad",
-      "te dará paz mental en tiempos difíciles"
+      "cambiará tu vida", "te hará más feliz", "mejorará tu día",
+      "te dará resultados", "es lo que necesitabas",
+      "te sorprenderá", "superará lo que imaginas"
     ];
 
     this.problemas = [
-      "los problemas cotidianos", "la falta de motivación", "las dificultades diarias",
-      "el estrés acumulado", "la rutina aburrida", "las limitaciones personales",
-      "la inseguridad en las calles", "la crisis económica", "la desinformación",
-      "las noticias falsas", "el cambio climático", "las tensiones políticas"
+      "los problemas diarios", "la falta de motivación", "las dificultades",
+      "el estrés", "la rutina", "las preocupaciones",
+      "la inseguridad", "la crisis", "la incertidumbre"
     ];
 
     this.mejoras = [
-      "tecnología avanzada", "diseño innovador", "calidad premium", "rendimiento superior",
-      "eficiencia comprobada", "resultados garantizados", "seguridad máxima",
-      "protección absoluta", "inteligencia artificial", "blockchain integrado"
+      "tecnología avanzada", "diseño innovador", "calidad superior",
+      "mejor rendimiento", "más eficiencia", "mayor seguridad"
     ];
 
-    // NUEVOS BANCOS PARA CONSPIRACIONES
     this.conspiraciones = [
-      "los Illuminati", "el gobierno en la sombra", "las grandes corporaciones",
-      "el Nuevo Orden Mundial", "los grupos de poder", "las élites globales",
-      "los medios de comunicación", "las farmacéuticas", "la banca internacional"
+      "los grupos de poder", "las élites", "los intereses creados",
+      "las corporaciones", "el sistema", "los políticos"
     ];
 
     this.accionesSospechosas = [
-      "aparece misteriosamente", "cambia de repente", "se hace viral",
-      "desaparece de los medios", "es censurado", "genera controversia"
+      "aparece de repente", "cambia rápido", "se hace popular",
+      "desaparece", "es censurado"
     ];
 
     this.eventosSospechosos = [
-      "hay elecciones", "surge una crisis", "aparece un nuevo virus",
-      "hay protestas sociales", "cambia el clima económico", "hay un escándalo político"
+      "hay elecciones", "surge una crisis", "hay protestas",
+      "cambia la economía", "hay escándalos"
     ];
   }
 
-  // MÉTODOS EXISTENTES (se mantienen igual)
+  // Los métodos se mantienen exactamente igual...
   async distorsionarTexto(textoOriginal, tipoDistorsion = "polarizar_negativo") {
     try {
       const analisis = this.analizarTexto(textoOriginal);
@@ -253,7 +242,7 @@
       'caracteristica-unica': this.caracteristicas.unica,
       'caracteristica-seguridad': this.caracteristicas.seguridad,
 
-      // Nuevos placeholders para temas actuales
+      // Placeholders para temas actuales
       'tema-actual': Object.values(this.temasActuales).flat(),
       'tema-urgente': this.temasActuales.israel.concat(this.temasActuales.inseguridad),
       'problema-actual': this.problemas,
