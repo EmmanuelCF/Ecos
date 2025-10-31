@@ -1,5 +1,5 @@
 let miTextarea;
-let myQuestion = "¿QUÉ TE GUSTARÍA QUE ALGUIEN POR FIN ENTENDIERA?";
+let myQuestion = "¿Qué te gustaría que alguien por fin entendiera?";
 let questionSize = 60;
 let lineasGeneradas = 0;
 let inputFontSize = 40;
@@ -8,6 +8,26 @@ let savedText = "";
 let textAreaAndQuestionSize = 0;
 let tamanoFuente = 40;
 let dotSize = 4;
+
+let usarClarifai = false;
+let clarifaiDetections = [];
+
+let areaPuntos = {
+  minX: 0,
+  maxX: 0,
+  minY: 0,
+  maxY: 0,
+  ancho: 0,
+  alto: 0
+};
+
+let calibracion = {
+  minX: 0,
+  maxX: 0,
+  minY: 0,
+  maxY: 0,
+  calibrado: false
+};
 
 let generando = false;
 
@@ -37,14 +57,31 @@ let mouseCerca = false;
 
 // VARIABLES PARA DETECCIÓN DE ROSTRO (FACE-API.JS)
 let video;
-let narizX = 0;
-let narizY = 0;
-let narizDetectada = false;
-let usarNariz = true;
-let modelosCargados = false;
+let caraX = 0;
+let caraY = 0;
+let caraDetectada = false;
+let usarCara = true;
+let blazeModel = null;
+let modeloCargado = false;
+
+let radio01 = 0;
+let radio02 = 400;
+let radio03 = 800;
+let radio04 = 1200;
+let radio05 = 1600;
+let radio06 = 2000;
+let radio07 = 2400;
+let radio08 = 2800;
+let radio09 = 3200;
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
+
+  calibracion.minX = width * 0.1;
+  calibracion.maxX = width * 0.9;
+  calibracion.minY = height * 0.2;
+  calibracion.maxY = height * 0.8;
+  calibracion.calibrado = true;
 
   // Inicializar el modelo de IA de texto
   distorsionadorTexto.inicializar().then(exito => {
@@ -55,22 +92,24 @@ function setup() {
     }
   });
 
-  // Inicializar cámara y detección facial
-  inicializarDeteccionFacial();
+  // ✅ INICIALIZAR DETECCIÓN CON BLAZEFACE (MÁS RÁPIDO)
+  inicializarDeteccionBlazeFace();
 
   miTextarea = createElement('textarea');
   miTextarea.style('background-color', 'rgba(0,0,0,0)');
+  miTextarea.attribute('placeholder', 'Escribe tu respuesta aquí...');
   miTextarea.style('caret-shape', 'block');
-  miTextarea.style('caret-color', '#575757');
+  miTextarea.style('caret-color', '#ffb158');
   miTextarea.style('outline', 'none');
   miTextarea.style('border', 'none');
   miTextarea.style('border-radius', '0px');
   miTextarea.style('padding', '10px');
   miTextarea.style('font-size', tamanoFuente + 'px');
-  miTextarea.style('color', 'rgba(255,255,255,255)');
+  miTextarea.style('color', '#FFB158');
   miTextarea.style('font-weight', 'bold');
-  miTextarea.style('font-family', 'Montserrat Black, sans-serif');
+  miTextarea.style('font-family', customFont);
   miTextarea.attribute('autofocus', '');
+  miTextarea.style('text-align', 'center');
 
   // DEBOUNCE HÍBRIDO
   miTextarea.elt.addEventListener('input', function() {
@@ -79,24 +118,26 @@ function setup() {
   });
 
   botonEnviar = createButton('Enviar');
-  botonEnviar.size(110, 60);
+  botonEnviar.size(120, 120);
   botonEnviar.style('font-weight', 'bold');
-  botonEnviar.style('font-family', 'Montserrat Black, sans-serif');
-  botonEnviar.style('background-color', '#3e3e3e');
+  botonEnviar.style('font-family', customFont);
+  botonEnviar.style('font-color', '#22001f');
+  botonEnviar.style('background-color', '#e4279e');
   botonEnviar.style('color', 'white');
   botonEnviar.style('border', 'none');
-  botonEnviar.style('border-radius', '16px');
+  botonEnviar.style('border-radius', '200px');
   botonEnviar.style('font-size', '16px');
   botonEnviar.style('cursor', 'pointer');
   botonEnviar.style('transition', 'all 0.3s');
+  botonEnviar.position(width / 2 - botonEnviar.width / 2, height - botonEnviar.height - 40);
 
   botonEnviar.elt.addEventListener('mouseover', function() {
-    this.style.backgroundColor = '#8c8c8c';
+    this.style.backgroundColor = '#c81889';
     this.style.transform = 'scale(1.05)';
   });
 
   botonEnviar.elt.addEventListener('mouseout', function() {
-    this.style.backgroundColor = '#707070';
+    this.style.backgroundColor = '#e4279e';
     this.style.transform = 'scale(1)';
   });
 
@@ -104,126 +145,201 @@ function setup() {
   botonEnviar.mousePressed(iniciarProcesoCompleto);
 }
 
-async function inicializarDeteccionFacial() {
+async function inicializarDeteccionBlazeFace() {
   try {
-    console.log("🔄 Cargando modelos de detección facial...");
+    console.log("🚀 Inicializando BlazeFace (más rápido)...");
 
-    const modelPath = './models';
-    console.log("📁 Ruta de modelos:", modelPath);
-
-    // 🔧 SOLUCIÓN: Cargar modelos con manejo de errores individual
-    try {
-      await faceapi.nets.tinyFaceDetector.loadFromUri(modelPath);
-      console.log("✅ TinyFaceDetector cargado");
-    } catch (error) {
-      console.error("❌ Error cargando TinyFaceDetector:", error);
-      throw error;
+    // CARGAR TENSORFLOW.JS Y BLAZEFACE
+    if (typeof tf === 'undefined') {
+      console.error("❌ TensorFlow.js no está cargado");
+      setTimeout(inicializarDeteccionBlazeFace, 500);
+      return;
     }
 
-    try {
-      await faceapi.nets.faceLandmark68Net.loadFromUri(modelPath);
-      console.log("✅ FaceLandmark68Net cargado");
-    } catch (error) {
-      console.error("❌ Error cargando FaceLandmark68Net:", error);
-      throw error;
+    if (typeof blazeface === 'undefined') {
+      console.error("❌ BlazeFace no está cargado");
+      setTimeout(inicializarDeteccionBlazeFace, 500);
+      return;
     }
 
-    modelosCargados = true;
-    console.log("✅ Todos los modelos de detección facial cargados");
-
-    // Inicializar cámara con mejor manejo de errores
+    // CARGAR MODELO BLAZEFACE
     try {
-      video = createCapture(VIDEO);
-      video.size(320, 240);
+      blazeModel = await blazeface.load();
+      modeloCargado = true;
+      console.log("✅ BlazeFace cargado - Listo para detección rápida");
+    } catch (error) {
+      console.error("❌ Error cargando BlazeFace:", error);
+      usarCara = false;
+      return;
+    }
+
+    // INICIALIZAR CÁMARA
+    try {
+      video = createCapture(VIDEO, {
+        audio: false,
+        video: {
+          width: 128,  // Mínimo necesario para buena detección
+          height: 128,
+          facingMode: 'user'
+        }
+      });
       video.hide();
-      console.log("📷 Cámara inicializada");
+      console.log("📷 Cámara inicializada para BlazeFace");
+
+      // Esperar un momento y empezar detección
+      setTimeout(() => {
+        console.log("🎬 Iniciando detección rápida...");
+        empezarDeteccionRapida();
+      }, 500);
+
     } catch (error) {
       console.error("❌ Error inicializando cámara:", error);
-      throw error;
+      usarCara = false;
     }
 
-    // Esperar un momento para que la cámara se inicialice
-    setTimeout(() => {
-      console.log("🎬 Iniciando detección facial...");
-      empezarDeteccion();
-    }, 1000);
-
   } catch (error) {
-    console.error("❌ Error crítico en inicialización facial:", error);
+    console.error("❌ Error crítico en inicialización:", error);
     console.log("🖱️ Usando mouse como fallback");
-    usarNariz = false;
-    modelosCargados = false;
+    usarCara = false;
+    modeloCargado = false;
   }
 }
 
-
-async function empezarDeteccion() {
-  if (!modelosCargados || !video) return;
+async function empezarDeteccionRapida() {
+  if (!modeloCargado || !blazeModel || !video) {
+    console.log("⏳ Modelo no listo, reintentando...");
+    setTimeout(empezarDeteccionRapida, 500);
+    return;
+  }
 
   try {
-    // 🔧 SOLUCIÓN: Agregar más opciones de configuración y manejo de errores
-    const opcionesDeteccion = new faceapi.TinyFaceDetectorOptions({
-      inputSize: 160, // Tamaño óptimo para tinyFaceDetector
-      scoreThreshold: 0.5 // Umbral de confianza
-    });
+    // ✅ DETECCIÓN CON BLAZEFACE
+    const predictions = await blazeModel.estimateFaces(video.elt, false);
 
-    const detecciones = await faceapi
-      .detectAllFaces(video.elt, opcionesDeteccion)
-      .withFaceLandmarks();
+    if (predictions && predictions.length > 0) {
+      const prediction = predictions[0];
 
-    if (detecciones && detecciones.length > 0) {
-      const landmarks = detecciones[0].landmarks;
-      const nariz = landmarks.getNose();
+      // BlazeFace devuelve las coordenadas de la caja
+      const topLeft = prediction.topLeft;
+      const bottomRight = prediction.bottomRight;
 
-      // Calcular centro de la nariz
-      let sumaX = 0, sumaY = 0;
-      for (let punto of nariz) {
-        sumaX += punto.x;
-        sumaY += punto.y;
+      // Calcular centro de la cara
+      const centerX = (topLeft[0] + bottomRight[0]) / 2;
+      const centerY = (topLeft[1] + bottomRight[1]) / 2;
+
+      console.log("🔍 Coordenadas originales:", {centerX, centerY, videoWidth: video.width, videoHeight: video.height});
+
+      // Mapear a coordenadas del canvas
+      caraX = map(centerX, 0, video.width, calibracion.minX, calibracion.maxX);
+      caraY = map(centerY, 0, video.height, calibracion.minY, calibracion.maxY);
+
+      caraDetectada = true;
+
+      // Debug cada segundo
+      if (frameCount % 60 === 0) {
+        console.log("⚡ Cara detectada - Posición:",
+          Math.round(caraX), Math.round(caraY),
+          "Confianza:", prediction.probability ? prediction.probability[0].toFixed(3) : "N/A");
       }
-
-      narizX = map(sumaX / nariz.length, 0, video.width, 0, width);
-      narizY = map(sumaY / nariz.length, 0, video.height, 0, height);
-      narizDetectada = true;
-
-      console.log("👃 Nariz detectada en:", narizX.toFixed(0), narizY.toFixed(0));
     } else {
-      narizDetectada = false;
-      console.log("🔍 Buscando rostro...");
+      caraDetectada = false;
+      if (frameCount % 120 === 0) {
+        console.log("🔍 No se detectaron caras en el frame");
+      }
     }
   } catch (error) {
     console.error("❌ Error en detección:", error);
-    narizDetectada = false;
-    // Si hay error continuo, desactivar detección facial
-    if (error.message.includes('failed') || error.message.includes('load')) {
-      console.log("🔄 Desactivando detección facial debido a errores continuos");
-      usarNariz = false;
-    }
+    caraDetectada = false;
   }
 
-  // Continuar detección (más lento si hay errores)
-  setTimeout(empezarDeteccion, narizDetectada ? 100 : 500);
+  // Ciclo de detección más rápido
+  setTimeout(empezarDeteccionRapida, 100); // 10 FPS para empezar
 }
 
 function preload() {
-  customFont = loadFont('assets/fonts/Montserrat-Black.ttf');
+  customFont = loadFont('assets/fonts/Montserrat-Regular.ttf');
 }
 
 function draw() {
   background('#000000');
 
+  //dibujar linea
+  push();
+  strokeWeight(1);
+  stroke('rgba(255,60,60,0.49)');
+  line(0, 0, width, height);
+  line(width, 0, 0, height);
+  line(width/2, 0, width/2, height);
+  line(0, height/2, width, height/2);
+  pop();
+
+  //dibujar linea
+  push();
+  strokeWeight(1);
+  stroke('rgba(37,109,254,0.51)');
+  noFill();
+  ellipse(width/2, height/2, int(radio01 ), int(radio01 ));
+  ellipse(width/2, height/2, int(radio02 ), int(radio02 ));
+  ellipse(width/2, height/2, int(radio03 ), int(radio03 ));
+  ellipse(width/2, height/2, int(radio04 ), int(radio04 ));
+  ellipse(width/2, height/2, int(radio05 ), int(radio05 ));
+  ellipse(width/2, height/2, int(radio06 ), int(radio06 ));
+  ellipse(width/2, height/2, int(radio07 ), int(radio07));
+  ellipse(width/2, height/2, int(radio08 ), int(radio08));
+  ellipse(width/2, height/2, int(radio09 ), int(radio09));
+  pop();
+
+  radio01 = radio01 + 1;
+  radio02 = radio02 + 1;
+  radio03 = radio03 + 1;
+  radio04 = radio04 + 1;
+  radio05 = radio05 + 1;
+  radio06 = radio06 + 1;
+  radio07 = radio07 + 1;
+  radio08 = radio08 + 1;
+  radio09 = radio09 + 1;
+
+  if(radio01 > 3600) {
+    radio01 = 0;
+  }
+  if(radio02 > 3600) {
+    radio02 = 0;
+  }
+  if(radio03 > 3600) {
+    radio03 = 0;
+  }
+  if(radio04 > 3600) {
+    radio04 = 0;
+  }
+  if(radio05 > 3600) {
+    radio05 = 0;
+  }
+  if(radio06 > 3600) {
+    radio06 = 0;
+  }
+  if(radio07 > 3600){
+    radio07 = 0;
+  }
+  if(radio08 > 3600){
+    radio08 = 0;
+  }
+  if(radio09 > 3600)
+  {
+    radio09 = 0;
+  }
+
   // TEXTO PRINCIPAL (pregunta)
   textFont(customFont);
   textAlign(CENTER, TOP);
   textSize(questionSize);
-  fill('#8f8f8f');
+  fill('#e4279e');
 
   let lineasInfo = obtenerLineasTexto(myQuestion, width);
   lineasGeneradas = lineasInfo.length;
-  text(myQuestion, 0, 0, width, height);
+  text(myQuestion, (width / 2) - (width / 2) / 2, questionSize, width/2, height);
 
   // Posicionar textarea
-  miTextarea.position((width / 4) - (width / 4) / 4, questionSize * lineasGeneradas + questionSize - 20);
+  miTextarea.position((width / 4) - (width / 4) / 4, (height / 2 - questionSize) - miTextarea.elt.scrollHeight/ questionSize * 15) ;
   miTextarea.size(width * 0.66, inputFontSize * .2);
   miTextarea.style('height', miTextarea.elt.scrollHeight + 'px');
 
@@ -232,7 +348,6 @@ function draw() {
   }
 
   textAreaAndQuestionSize = questionSize * lineasGeneradas + questionSize;
-  botonEnviar.position(width / 2 - botonEnviar.width / 2, textAreaAndQuestionSize + miTextarea.elt.scrollHeight);
 
   // Mostrar letras que se desvanecen
   textFont(customFont);
@@ -252,18 +367,27 @@ function draw() {
     }
   }
 
-  // DECIDIR SI USAR NARIZ O MOUSE
+  // DECIDIR SI USAR CARA O MOUSE
   let posicionX, posicionY;
 
-  if (usarNariz && narizDetectada) {
-    // ✅ USAR POSICIÓN DE LA NARIZ CON CONSTRAINTS
-    posicionX = constrain(narizX, 0, width);
-    posicionY = constrain(narizY, 0, height);
+  if (usarCara && caraDetectada) {
+    // ✅ USAR EL CENTRO DE LA CARA DETECTADA
+    posicionX = caraX;
+    posicionY = caraY;
 
-    // Debug de coordenadas de nariz
-    if (frameCount % 60 === 0) { // Mostrar cada segundo aproximadamente
-      console.log("👃 Coordenadas nariz - Raw:", narizX.toFixed(0), narizY.toFixed(0),
-        "Constrained:", posicionX.toFixed(0), posicionY.toFixed(0));
+    // Si hay área de puntos definida, limitar al área
+    if (areaPuntos.ancho > 0 && areaPuntos.alto > 0) {
+      posicionX = constrain(posicionX, areaPuntos.minX, areaPuntos.maxX);
+      posicionY = constrain(posicionY, areaPuntos.minY, areaPuntos.maxY);
+    } else {
+      // Limitar a los bordes del canvas
+      posicionX = constrain(posicionX, 0, width);
+      posicionY = constrain(posicionY, 0, height);
+    }
+
+    // Debug de coordenadas
+    if (frameCount % 60 === 0) {
+      console.log("👁️ Cara mapeada - X:", posicionX.toFixed(0), "Y:", posicionY.toFixed(0));
     }
   } else {
     // ✅ USAR MOUSE (fallback)
@@ -272,36 +396,42 @@ function draw() {
   }
 
   // ✅ LÓGICA MEJORADA: Calcular intensidad basada en posición X e Y
-  let intensidadActual = ruidoIntensidad; // Valor por defecto (máximo ruido)
+  let intensidadActual = ruidoIntensidad;
 
-  // Definir área del texto (usando tus valores que funcionan con mouse)
-  let textoStartX = width/5;          // Aprox 300-400 en pantalla normal
-  let textoEndX = width/5 + width * 0.65; // Aprox 1000-1200
-  let textoStartY = textAreaAndQuestionSize; // Donde empieza el texto
-  let textoEndY = textAreaAndQuestionSize + (points.length > 0 ? points[points.length-1].y + 50 : height);
+  // Definir área del texto
+  let textoStartX, textoEndX, textoStartY, textoEndY;
+
+  if (points.length > 0 && areaPuntos.ancho > 0) {
+    textoStartX = areaPuntos.minX;
+    textoEndX = areaPuntos.maxX;
+    textoStartY = areaPuntos.minY;
+    textoEndY = areaPuntos.maxY;
+  } else {
+    textoStartX = width/5;
+    textoEndX = width/5 + width * 0.65;
+    textoStartY = textAreaAndQuestionSize;
+    textoEndY = height * 0.8;
+  }
 
   // Verificar si está sobre el área del texto
   let estaSobreTexto = posicionX > textoStartX && posicionX < textoEndX &&
     posicionY > textoStartY && posicionY < textoEndY;
 
   if (estaSobreTexto) {
-    // ✅ CALCULAR INTENSIDAD BASADA EN POSICIÓN X (horizontal) - 70% de influencia
     let centroX = textoStartX + (textoEndX - textoStartX) / 2;
-    let distanciaX = abs(posicionX - centroX);
-    let maxDistanciaX = (textoEndX - textoStartX) / 2;
-    let intensidadX = map(distanciaX, 0, maxDistanciaX, 2, ruidoIntensidad);
-
-    // ✅ CALCULAR INTENSIDAD BASADA EN POSICIÓN Y (vertical) - 30% de influencia
     let centroY = textoStartY + (textoEndY - textoStartY) / 2;
+
+    let distanciaX = abs(posicionX - centroX);
     let distanciaY = abs(posicionY - centroY);
+
+    let maxDistanciaX = (textoEndX - textoStartX) / 2;
     let maxDistanciaY = (textoEndY - textoStartY) / 2;
-    let intensidadY = map(distanciaY, 0, maxDistanciaY, 2, ruidoIntensidad);
 
-    // ✅ COMBINAR AMBAS INTENSIDADES (70% X, 30% Y)
-    intensidadActual = (intensidadX * 0.7) + (intensidadY * 0.3);
+    let normalX = distanciaX / maxDistanciaX;
+    let normalY = distanciaY / maxDistanciaY;
 
-    // Asegurar que no se salga de los límites
-    intensidadActual = constrain(intensidadActual, 2, ruidoIntensidad);
+    let distanciaNormal = max(normalX, normalY);
+    intensidadActual = map(distanciaNormal, 0, 1, 2, ruidoIntensidad);
   }
 
   // Mostrar puntos con efecto de ruido
@@ -313,15 +443,15 @@ function draw() {
     for (let i = 0; i < points.length; i++) {
       let base = puntosBase[i];
 
-      // Calcular distancia para efecto localizado (usando ambas coordenadas)
+      // Calcular distancia para efecto localizado
       let distancia = dist(posicionX, posicionY, base.x, base.y);
-      let radioInfluencia = 180; // Aumentado un poco para mejor cobertura
+      let radioInfluencia = 180;
 
       let factorRuido = 1.0;
 
       if (distancia < radioInfluencia) {
         let t = map(distancia, 0, radioInfluencia, 0, 1);
-        factorRuido = pow(t, 1.5); // Suavizado
+        factorRuido = pow(t, 1.5);
       }
 
       let ruidoX = sin(frameCount * 0.05 + base.offsetX) * intensidadActual * factorRuido;
@@ -333,12 +463,12 @@ function draw() {
     }
   }
 
-  // Mostrar estado actual (indicar si está usando nariz)
+  // Mostrar estado actual
   fill(255);
   textSize(16);
   textAlign(LEFT);
-  let estadoNariz = usarNariz ? (narizDetectada ? "Nariz ✅" : "Buscando rostro...") : "Mouse";
-  text(`Estado: ${estadoActual} | Control: ${estadoNariz}`, 20, height - 30);
+  let estadoCara = usarCara ? (caraDetectada ? "Cara ✅" : "Buscando rostro...") : "Mouse";
+  text(`Estado: ${estadoActual} | Control: ${estadoCara}`, 20, height - 30);
 
   // DEBUG VISUAL MEJORADO
   if (mostrarPuntos) {
@@ -352,15 +482,15 @@ function draw() {
     stroke(0, 255, 0, 60);
     let centroX = textoStartX + (textoEndX - textoStartX) / 2;
     let centroY = textoStartY + (textoEndY - textoStartY) / 2;
-    line(centroX, textoStartY, centroX, textoEndY); // Línea vertical
-    line(textoStartX, centroY, textoEndX, centroY); // Línea horizontal
+    line(centroX, textoStartY, centroX, textoEndY);
+    line(textoStartX, centroY, textoEndX, centroY);
 
     // Punto central
     fill(0, 255, 0, 80);
     noStroke();
     ellipse(centroX, centroY, 8, 8);
 
-    // Posición actual (nariz o mouse)
+    // Posición actual (cara o mouse)
     fill(0, 255, 0, 150);
     noStroke();
     ellipse(posicionX, posicionY, 12, 12);
@@ -381,8 +511,8 @@ function draw() {
     text(`Rango Y: ${textoStartY.toFixed(0)}-${textoEndY.toFixed(0)}`, 20, height - 20);
   }
 
-  // Mostrar indicador de posición de nariz/mouse (debug original)
-  if (estaSobreTexto && (usarNariz || mouseIsPressed)) {
+  // Mostrar indicador de posición (debug original)
+  if (estaSobreTexto && (usarCara || mouseIsPressed)) {
     fill(255, 0, 0, 100);
     noStroke();
     ellipse(posicionX, posicionY, 20, 20);
@@ -425,6 +555,8 @@ async function iniciarProcesoCompleto() {
   botonEnviar.style('opacity', '0');
   botonEnviar.style('transition', 'opacity 0.5s');
 
+  miTextarea.attribute('placeholder', '');
+
   // Esperar un poco para que se complete la transición
   await new Promise(resolve => setTimeout(resolve, 500));
   botonEnviar.hide();
@@ -458,26 +590,36 @@ function createFadingLetters(text) {
 
   fadingLetters = [];
 
+  // ✅ USAR LA POSICIÓN REAL DEL TEXTAREA
+  let textareaPosX = (width / 4) - (width / 4) / 4;
+  let textareaPosY = (height / 2 - questionSize) - miTextarea.elt.scrollHeight / questionSize * 15;
+
   for (let i = 0; i < lineas.length; i++) {
-    let posY = textAreaAndQuestionSize + (i * tamanoFuente * 1.2);
-    let posX = width/5;
+    let posY = textareaPosY + (i * tamanoFuente * 1.2);
+
+    // ✅ CALCULAR CENTRADO DE CADA LÍNEA (igual que el textarea)
+    let anchoLinea = textWidth(lineas[i]);
+    let posX = textareaPosX + (width * 0.66 - anchoLinea) / 2;
 
     for (let j = 0; j < lineas[i].length; j++) {
       let char = lineas[i].charAt(j);
       if (char !== ' ') {
         textSize(tamanoFuente);
         textFont(customFont);
+
+        // ✅ POSICIÓN EXACTA DE CADA LETRA CENTRADA
         let charX = posX + textWidth(lineas[i].substring(0, j));
+        let charY = posY;
 
         fadingLetters.push({
           char: char,
           x: charX,
-          y: posY,
+          y: charY,
           alpha: 255,
           fadeSpeed: random(2, 5),
           floatSpeed: random(0.2, 0.5),
           size: tamanoFuente,
-          color: color(255, 255, 255),
+          color: color(255, 177, 88),
           font: customFont
         });
       }
@@ -493,7 +635,7 @@ async function generarTextosConIA() {
   let textoOriginal = savedText;
 
   try {
-    console.log("🔄 Generando 5 textos (3 principales + 2 extra)...");
+    console.log("🔄 Generando 13 textos...");
 
     let todosLosTextos = [];
     const todosLosTipos = [
@@ -501,21 +643,34 @@ async function generarTextosConIA() {
       'distorsion_publicitaria',
       'exagerar',
       'polarizar_positivo',
-      'exagerar'
+      'exagerar',
+      'polarizar_negativo',
+      'polarizar_negativo',
+      'polarizar_positivo',
+      'distorsion_publicitaria',
+      'exagerar',           // Mensaje adicional 1
+      'polarizar_negativo', // Mensaje adicional 2
+      'distorsion_publicitaria', // Mensaje adicional 3
+      'polarizar_positivo'  // Mensaje adicional 4
     ];
 
     // Generar TODOS los textos en una sola pasada
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 13; i++) {
       let textoGenerado = await distorsionadorTexto.distorsionarTexto(textoOriginal, todosLosTipos[i]);
       todosLosTextos.push(textoGenerado);
       console.log(`✅ Texto ${i+1} generado:`, textoGenerado);
       await new Promise(resolve => setTimeout(resolve, 200));
     }
 
-    // Los primeros 3 son los principales con el patrón original en medio
-    let textoCombinado = todosLosTextos[0] + " • " + textoOriginal + " • " +
-      todosLosTextos[1] + " • " + textoOriginal + " • " +
-      todosLosTextos[2];
+    // Combinar todos los textos con el original intercalado
+    let textoCombinado =
+      todosLosTextos[0] + " " + textoOriginal + " " +
+      todosLosTextos[1] + " " + todosLosTextos[3] + " " +
+      todosLosTextos[2] + " " + todosLosTextos[4] + " " +
+      todosLosTextos[5] + " " + todosLosTextos[6] + " " +
+      todosLosTextos[7] + " " + todosLosTextos[8] + " " +
+      todosLosTextos[9] + " " + todosLosTextos[10] + " " +
+      todosLosTextos[11] + " " + todosLosTextos[12];
 
     console.log("🎲 Texto principal combinado:", textoCombinado);
 
@@ -533,6 +688,7 @@ function generarPuntosConRuido(textoCombinado) {
   points = [];
   puntosBase = [];
 
+  // Primero generar todos los puntos
   for (let i = 0; i < lineas.length; i++) {
     let posY = textAreaAndQuestionSize + (i * tamanoFuente * 1.2);
     let posX = width/5;
@@ -544,16 +700,63 @@ function generarPuntosConRuido(textoCombinado) {
 
     for (let punto of puntosOutline) {
       points.push(punto);
+    }
+  }
+
+  // ✅ CALCULAR EL CENTRO DE MASA DE TODOS LOS PUNTOS
+  let sumaX = 0;
+  let sumaY = 0;
+
+  for (let punto of points) {
+    sumaX += punto.x;
+    sumaY += punto.y;
+  }
+
+  let centroX = sumaX / points.length;
+  let centroY = sumaY / points.length;
+
+  // ✅ CALCULAR DESPLAZAMIENTO NECESARIO PARA CENTRAR EN PANTALLA
+  let desplazamientoX = width / 2 - centroX;
+  let desplazamientoY = height / 2 - centroY;
+
+  // ✅ LIMPIAR Y VOLVER A GENERAR CON EL DESPLAZAMIENTO APLICADO
+  points = [];
+  puntosBase = [];
+
+  for (let i = 0; i < lineas.length; i++) {
+    let posY = textAreaAndQuestionSize + (i * tamanoFuente * 1.2);
+    let posX = width/5;
+
+    let puntosOutline = customFont.textToPoints(lineas[i], posX, posY, tamanoFuente, {
+      sampleFactor: 0.22,
+      simplifyThreshold: 0
+    });
+
+    for (let punto of puntosOutline) {
+      // ✅ APLICAR DESPLAZAMIENTO PARA CENTRAR
+      let puntoCentrado = {
+        x: punto.x + desplazamientoX,
+        y: punto.y + desplazamientoY + 100
+      };
+
+      points.push(puntoCentrado);
       puntosBase.push({
-        x: punto.x,
-        y: punto.y,
+        x: puntoCentrado.x,
+        y: puntoCentrado.y,
         offsetX: random(0, 1000),
         offsetY: random(0, 1000)
       });
     }
   }
 
-  console.log("⭕ Puntos con ruido generados:", points.length, "puntos");
+  // ✅ CALCULAR EL ÁREA QUE OCUPAN LOS PUNTOS
+  calcularAreaPuntos();
+
+  console.log("⭕ Puntos centrados generados:", points.length, "puntos");
+  console.log("🎯 Área de puntos:",
+    "X:", areaPuntos.minX.toFixed(0), "-", areaPuntos.maxX.toFixed(0),
+    "Y:", areaPuntos.minY.toFixed(0), "-", areaPuntos.maxY.toFixed(0));
+  console.log("🎯 Nuevo centro:", width/2, height/2);
 }
 
 function obtenerLineasTexto(texto, anchoMaximo) {
@@ -618,10 +821,10 @@ function dividirEnLineas(texto, anchoMaximo, tamanoFuente) {
 function mousePressed() {
   // Verificar si es click secundario (botón derecho)
   if (mouseButton === LEFT) {
-    // Cambiar entre nariz y mouse
-    usarNariz = !usarNariz;
-    console.log(usarNariz ? "🔄 Usando detección de nariz" : "🖱️ Usando mouse");
-    return false; // Prevenir el menú contextual del navegador
+    // Cambiar entre cara y mouse
+    usarCara = !usarCara;
+    console.log(usarCara ? "🔄 Usando detección de cara" : "🖱️ Usando mouse");
+    return false;
   }
 }
 
@@ -672,3 +875,34 @@ async function verificarModelos() {
 // Llama esta función al inicio del setup
 // Agrega esto al final de tu función setup():
 // verificarModelos();
+
+function calcularAreaPuntos() {
+  if (points.length === 0) return;
+
+  // Inicializar con el primer punto
+  areaPuntos.minX = points[0].x;
+  areaPuntos.maxX = points[0].x;
+  areaPuntos.minY = points[0].y;
+  areaPuntos.maxY = points[0].y;
+
+  // Encontrar los límites
+  for (let punto of points) {
+    areaPuntos.minX = min(areaPuntos.minX, punto.x);
+    areaPuntos.maxX = max(areaPuntos.maxX, punto.x);
+    areaPuntos.minY = min(areaPuntos.minY, punto.y);
+    areaPuntos.maxY = max(areaPuntos.maxY, punto.y);
+  }
+
+  // Calcular dimensiones
+  areaPuntos.ancho = areaPuntos.maxX - areaPuntos.minX;
+  areaPuntos.alto = areaPuntos.maxY - areaPuntos.minY;
+
+  // Agregar un margen alrededor de los puntos
+  let margen = 50;
+  areaPuntos.minX -= margen;
+  areaPuntos.maxX += margen;
+  areaPuntos.minY -= margen;
+  areaPuntos.maxY += margen;
+  areaPuntos.ancho = areaPuntos.maxX - areaPuntos.minX;
+  areaPuntos.alto = areaPuntos.maxY - areaPuntos.minY;
+}
