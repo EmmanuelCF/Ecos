@@ -9,6 +9,10 @@ let textAreaAndQuestionSize = 0;
 let tamanoFuente = 40;
 let dotSize = 4;
 
+let puntosBuffer;
+let puntosBufferDirty = true;
+
+
 let usarClarifai = false;
 let clarifaiDetections = [];
 
@@ -387,7 +391,7 @@ function draw() {
 
     // Debug de coordenadas
     if (frameCount % 60 === 0) {
-      console.log("👁️ Cara mapeada - X:", posicionX.toFixed(0), "Y:", posicionY.toFixed(0));
+      //console.log("👁️ Cara mapeada - X:", posicionX.toFixed(0), "Y:", posicionY.toFixed(0));
     }
   } else {
     // ✅ USAR MOUSE (fallback)
@@ -435,34 +439,43 @@ function draw() {
   }
 
   // Mostrar puntos con efecto de ruido
+  // Mostrar puntos con efecto de ruido - VERSIÓN OPTIMIZADA
   if (mostrarPuntos && points.length > 0 && puntosBase.length === points.length) {
     if (puntosAlpha < 255) {
-      puntosAlpha += 3;
+      puntosAlpha += 5; // Más rápido
     }
 
-    for (let i = 0; i < points.length; i++) {
-      let base = puntosBase[i];
+    // ✅ OPTIMIZACIÓN: Pre-calcular valores de ruido una vez por frame
+    const tiempo = frameCount * 0.03;
+    const ruidoBaseX = sin(tiempo) * intensidadActual;
+    const ruidoBaseY = cos(tiempo * 0.8) * intensidadActual;
 
-      // Calcular distancia para efecto localizado
+    // ✅ OPTIMIZACIÓN: Usar buffer de gráficos para puntos estáticos
+    if (!puntosBuffer || puntosBufferDirty) {
+      renderizarPuntosBuffer();
+    }
+
+    // Dibujar el buffer una vez
+    image(puntosBuffer, 0, 0);
+
+    // ✅ OPTIMIZACIÓN: Solo calcular dinámicamente para puntos cercanos
+    const puntosCercanos = obtenerPuntosCercanos(posicionX, posicionY, 200);
+
+    for (let i = 0; i < puntosCercanos.length; i++) {
+      let base = puntosCercanos[i];
       let distancia = dist(posicionX, posicionY, base.x, base.y);
-      let radioInfluencia = 180;
 
-      let factorRuido = 1.0;
+      if (distancia < 180) {
+        let factor = pow(map(distancia, 0, 180, 0, 1), 1.5);
+        let ruidoX = sin(tiempo + base.offsetX) * intensidadActual * factor;
+        let ruidoY = cos(tiempo * 0.8 + base.offsetY) * intensidadActual * factor;
 
-      if (distancia < radioInfluencia) {
-        let t = map(distancia, 0, radioInfluencia, 0, 1);
-        factorRuido = pow(t, 1.5);
+        fill(255, 255, 0, puntosAlpha);
+        noStroke();
+        ellipse(base.x + ruidoX, base.y + ruidoY, dotSize, dotSize);
       }
-
-      let ruidoX = sin(frameCount * 0.05 + base.offsetX) * intensidadActual * factorRuido;
-      let ruidoY = cos(frameCount * 0.03 + base.offsetY) * intensidadActual * factorRuido;
-
-      fill(255, 255, 0, puntosAlpha);
-      noStroke();
-      ellipse(base.x + ruidoX, base.y + ruidoY, dotSize, dotSize);
     }
   }
-
   // Mostrar estado actual
   fill(255);
   textSize(16);
@@ -905,4 +918,26 @@ function calcularAreaPuntos() {
   areaPuntos.maxY += margen;
   areaPuntos.ancho = areaPuntos.maxX - areaPuntos.minX;
   areaPuntos.alto = areaPuntos.maxY - areaPuntos.minY;
+}
+
+function renderizarPuntosBuffer() {
+  puntosBuffer = createGraphics(width, height);
+  puntosBuffer.fill(255, 255, 0, puntosAlpha);
+  puntosBuffer.noStroke();
+
+  for (let i = 0; i < points.length; i++) {
+    puntosBuffer.ellipse(points[i].x, points[i].y, dotSize, dotSize);
+  }
+
+  puntosBufferDirty = false;
+}
+
+function obtenerPuntosCercanos(x, y, radio) {
+  const cercanos = [];
+  for (let i = 0; i < puntosBase.length; i++) {
+    if (dist(x, y, puntosBase[i].x, puntosBase[i].y) < radio) {
+      cercanos.push(puntosBase[i]);
+    }
+  }
+  return cercanos;
 }
