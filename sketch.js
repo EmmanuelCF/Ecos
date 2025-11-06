@@ -156,7 +156,10 @@ function draw() {
   // Mostrar letras que se desvanecen (solo desvanecimiento, sin flotar)
   mostrarLetrasDesvanecientes();
 
-  // Mostrar saved text en el centro
+  // === IMPORTANTE: Mostrar saved text ENCIMA de todo ===
+  mostrarLetrasDesvanecientes();
+
+  // === SAVED TEXT - siempre mostrar si está activo ===
   if (mostrarSavedText) {
     mostrarTextoGuardado();
   }
@@ -168,8 +171,15 @@ function draw() {
     }
     dibujarTextosDistorsionados(mouseX, mouseY);
   }
-}
 
+  // DEBUG: Mostrar estado actual
+  fill(255);
+  textSize(14);
+  textAlign(LEFT);
+  text(`Estado: ${estadoActual}`, 20, height - 60);
+  text(`Saved Text: ${mostrarSavedText ? 'VISIBLE' : 'oculto'} alpha: ${savedTextAlpha}`, 20, height - 40);
+  text(`Textos Dist: ${textosDistorsionados.filter(t => t.activo).length}/${textosDistorsionados.length}`, 20, height - 20);
+}
 function mostrarTextoGuardado() {
   // Inicializar el tiempo de inicio si es la primera vez
   if (savedTextStartTime === 0) {
@@ -181,23 +191,22 @@ function mostrarTextoGuardado() {
 
   switch(savedTextState) {
     case "apareciendo":
-      // Aparición en 2 segundos (2000ms)
-      let progressAparecer = constrain(tiempoTranscurrido / 2000, 0, 1);
-      let easedAparecer = 1 - Math.pow(2, -8 * progressAparecer);
+      // Aparición en 0.2 segundos (200ms) - 12 frames a 60fps
+      let progressAparecer = constrain(tiempoTranscurrido / 200, 0, 1);
+      let easedAparecer = 1 - Math.pow(2, -10 * progressAparecer);
       savedTextAlpha = easedAparecer * 255;
 
       if (progressAparecer >= 1) {
         savedTextAlpha = 255;
         savedTextState = "visible";
-        savedTextTimer = savedTextDelay; // 3 segundos iniciales
         savedTextStartTime = millis(); // Reiniciar tiempo para la siguiente fase
-        console.log("✅ Saved text completamente visible, timer iniciado");
+        console.log("✅ Saved text completamente visible");
       }
       break;
 
     case "visible":
-      // Esperar el tiempo configurado (3 segundos + incrementos)
-      if (millis() - savedTextStartTime >= savedTextTimer) {
+      // Mantener visible por 2-3 segundos
+      if (millis() - savedTextStartTime >= 2000) { // 2 segundos visible
         savedTextState = "desapareciendo";
         savedTextStartTime = millis(); // Reiniciar tiempo para desaparición
         console.log("🔄 Saved text comenzando a desaparecer");
@@ -205,34 +214,49 @@ function mostrarTextoGuardado() {
       break;
 
     case "desapareciendo":
-      // Desaparición en 2 segundos (2000ms)
-      let progressDesaparecer = constrain((millis() - savedTextStartTime) / 2000, 0, 1);
+      // Desaparición en 0.2 segundos (200ms) - 12 frames
+      let progressDesaparecer = constrain((millis() - savedTextStartTime) / 200, 0, 1);
       let easedDesaparecer = progressDesaparecer * progressDesaparecer * progressDesaparecer;
       savedTextAlpha = 255 - (easedDesaparecer * 255);
 
       if (progressDesaparecer >= 1) {
         savedTextAlpha = 0;
-        mostrarSavedText = false;
-        savedTextCycleCount++;
-        // Aumentar el tiempo de espera para el próximo ciclo
-        savedTextDelay = 3000 + (savedTextCycleCount * 1000); // Aumenta 1 segundo cada ciclo
+        savedTextState = "esperando"; // Nuevo estado: espera antes de reaparecer
+        savedTextStartTime = millis(); // Reiniciar tiempo para espera
+        console.log("✅ Saved text desaparecido - esperando para reaparecer");
+      }
+      break;
+
+    case "esperando":
+      // Esperar tiempo que aumenta con cada ciclo (2-3 segundos base + incremento)
+      let tiempoEspera = 2000 + (savedTextCycleCount * 1000); // 2 segundos base + 1 segundo extra por ciclo
+      if (millis() - savedTextStartTime >= tiempoEspera) {
         savedTextState = "apareciendo";
-        savedTextStartTime = 0; // Resetear para próximo uso
-        console.log("✅ Saved text desaparecido completamente - proceso puede continuar");
+        savedTextStartTime = millis(); // Reiniciar tiempo para aparición
+        savedTextCycleCount++; // Incrementar contador de ciclos
+        console.log("🔄 Saved text reapareciendo - ciclo:", savedTextCycleCount, "espera:", tiempoEspera, "ms");
       }
       break;
   }
 
+  // DIBUJAR EL TEXTO
   if (savedTextAlpha > 0) {
+    push();
+
     textFont(customFont);
     textAlign(CENTER, CENTER);
     textSize(tamanoFuente);
+
+    // Texto simple y visible
+    noStroke();
     fill(255, 177, 88, savedTextAlpha);
 
     let lineas = dividirEnLineas(savedText, width * 0.8, tamanoFuente);
     for (let i = 0; i < lineas.length; i++) {
       text(lineas[i], width/2, height/2 + (i - lineas.length/2) * tamanoFuente * 1.2);
     }
+
+    pop();
   }
 }
 
@@ -347,7 +371,7 @@ function aplicarEfectosTexto(textoObj, influencia, index) {
   console.log("   📍 Posición final:", xFinal, yFinal, "rotación:", rotacionTotal);
 
   translate(xFinal, yFinal);
-  rotate(rotacionTotal);
+  //rotate(rotacionTotal);
 
   aplicarEfectoLetrasFlotantes(textoObj, 0, 0, influencia);
 
@@ -429,26 +453,16 @@ async function iniciarProcesoCompleto() {
   await esperarDesvanecimiento();
   console.log("✅ Desvanecimiento completado");
 
-  // Mostrar saved text en el centro
+  // INICIAR EL CICLO DE PULSO DEL SAVED TEXT
   mostrarSavedText = true;
   savedTextAlpha = 0;
-  savedTextTimer = 3000; // 3 segundos en milisegundos
-  savedTextState = "apareciendo";
-  savedTextStartTime = 0; // Resetear el tiempo
-  console.log("💾 Saved text mostrándose");
+  savedTextCycleCount = 0; // Resetear contador de ciclos
+  savedTextState = "apareciendo"; // Comenzar con aparición
+  savedTextStartTime = millis(); // Iniciar tiempo
+  console.log("💾 Saved text iniciando ciclo de pulso");
 
-  // Esperar a que termine la animación del saved text
-  await new Promise(resolve => {
-    const checkSavedText = () => {
-      if (!mostrarSavedText) {
-        console.log("✅ Saved text completado - continuando proceso");
-        resolve();
-      } else {
-        setTimeout(checkSavedText, 100);
-      }
-    };
-    checkSavedText();
-  });
+  // NO esperar a que termine el saved text - dejar que pulse indefinidamente
+  // mientras tanto, continuar con el proceso en segundo plano
 
   estadoActual = "procesando";
   console.log("🔄 Estado: procesando - generando textos con IA");
@@ -471,7 +485,7 @@ async function iniciarProcesoCompleto() {
   }
 
   generando = false;
-  console.log("🏁 Proceso completo terminado");
+  console.log("🏁 Proceso completo terminado - saved text sigue pulsando");
 }
 
 function esperarDesvanecimiento() {
