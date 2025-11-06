@@ -7,9 +7,7 @@ let textosDistorsionados = [];
 let savedText = "";
 let textAreaAndQuestionSize = 0;
 let tamanoFuente = 40;
-
-let usarClarifai = false;
-let clarifaiDetections = [];
+let savedTextStartTime = 0;
 
 let areaTexto = {
   minX: 0,
@@ -29,31 +27,12 @@ let calibracion = {
 };
 
 let generando = false;
-let timeoutInput;
-let lastProcessedText = "";
-let textosGenerados = [];
-let finalTexto = "";
-let limite = 0.8;
 let botonEnviar;
 let fadingLetters = [];
 
-// NUEVAS VARIABLES PARA TEXTO DISTORSIONADO
 let mostrarTextos = false;
 let textosAlpha = 0;
 let estadoActual = "escribiendo";
-
-// VARIABLES PARA EFECTOS DE TEXTO
-let ruidoIntensidad = 15;
-let mouseCerca = false;
-
-// VARIABLES PARA DETECCIÓN DE ROSTRO
-let video;
-let caraX = 0;
-let caraY = 0;
-let caraDetectada = false;
-let usarCara = true;
-let blazeModel = null;
-let modeloCargado = false;
 
 let radio01 = 0;
 let radio02 = 400;
@@ -65,10 +44,17 @@ let radio07 = 2400;
 let radio08 = 2800;
 let radio09 = 3200;
 
-// NUEVAS VARIABLES PARA EFECTOS VISUALES
 let tiempo = 0;
 let glitchIntensidad = 0;
 let chromaticAberration = 0;
+
+// VARIABLES PARA SAVED TEXT
+let mostrarSavedText = false;
+let savedTextAlpha = 0;
+let savedTextTimer = 0;
+let savedTextDelay = 180; // 3 segundos a 60fps
+let savedTextCycleCount = 0;
+let savedTextState = "apareciendo"; // "apareciendo", "visible", "desapareciendo"
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -81,15 +67,8 @@ function setup() {
 
   // Inicializar el modelo de IA de texto
   distorsionadorTexto.inicializar().then(exito => {
-    if (exito) {
-      console.log("✅ Modelo de IA de texto cargado y listo");
-    } else {
-      console.error("❌ No se pudo cargar el modelo de texto");
-    }
+    // Modelo cargado
   });
-
-  // ✅ INICIALIZAR DETECCIÓN CON BLAZEFACE
-  inicializarDeteccionBlazeFace();
 
   miTextarea = createElement('textarea');
   miTextarea.style('background-color', 'rgba(0,0,0,0)');
@@ -139,95 +118,6 @@ function setup() {
   miTextarea.elt.focus();
   botonEnviar.mousePressed(iniciarProcesoCompleto);
 }
-async function inicializarDeteccionBlazeFace() {
-  try {
-    console.log("🚀 Inicializando BlazeFace...");
-
-    if (typeof tf === 'undefined') {
-      console.error("❌ TensorFlow.js no está cargado");
-      setTimeout(inicializarDeteccionBlazeFace, 500);
-      return;
-    }
-
-    if (typeof blazeface === 'undefined') {
-      console.error("❌ BlazeFace no está cargado");
-      setTimeout(inicializarDeteccionBlazeFace, 500);
-      return;
-    }
-
-    try {
-      blazeModel = await blazeface.load();
-      modeloCargado = true;
-      console.log("✅ BlazeFace cargado - Listo para detección rápida");
-    } catch (error) {
-      console.error("❌ Error cargando BlazeFace:", error);
-      usarCara = false;
-      return;
-    }
-
-    try {
-      video = createCapture(VIDEO, {
-        audio: false,
-        video: {
-          width: 128,
-          height: 128,
-          facingMode: 'user'
-        }
-      });
-      video.hide();
-      console.log("📷 Cámara inicializada para BlazeFace");
-
-      setTimeout(() => {
-        console.log("🎬 Iniciando detección rápida...");
-        empezarDeteccionRapida();
-      }, 500);
-
-    } catch (error) {
-      console.error("❌ Error inicializando cámara:", error);
-      usarCara = false;
-    }
-
-  } catch (error) {
-    console.error("❌ Error crítico en inicialización:", error);
-    console.log("🖱️ Usando mouse como fallback");
-    usarCara = false;
-    modeloCargado = false;
-  }
-}
-
-async function empezarDeteccionRapida() {
-  if (!modeloCargado || !blazeModel || !video) {
-    console.log("⏳ Modelo no listo, reintentando...");
-    setTimeout(empezarDeteccionRapida, 500);
-    return;
-  }
-
-  try {
-    const predictions = await blazeModel.estimateFaces(video.elt, false);
-
-    if (predictions && predictions.length > 0) {
-      const prediction = predictions[0];
-      const topLeft = prediction.topLeft;
-      const bottomRight = prediction.bottomRight;
-
-      const centerX = (topLeft[0] + bottomRight[0]) / 2;
-      const centerY = (topLeft[1] + bottomRight[1]) / 2;
-
-      caraX = map(centerX, 0, video.width, calibracion.minX, calibracion.maxX);
-      caraY = map(centerY, 0, video.height, calibracion.minY, calibracion.maxY);
-
-      caraDetectada = true;
-
-    } else {
-      caraDetectada = false;
-    }
-  } catch (error) {
-    console.error("❌ Error en detección:", error);
-    caraDetectada = false;
-  }
-
-  setTimeout(empezarDeteccionRapida, 100);
-}
 
 function preload() {
   customFont = loadFont('assets/fonts/Montserrat-Regular.ttf');
@@ -235,12 +125,9 @@ function preload() {
 
 function draw() {
   background('#000000');
-  tiempo += 0.005; // Más rápido para efectos más dinámicos
+  tiempo += 0.005;
 
-  // Actualizar efectos
   actualizarEfectos();
-
-  // Dibujar elementos de fondo
   dibujarElementosFondo();
 
   // TEXTO PRINCIPAL (pregunta)
@@ -253,37 +140,25 @@ function draw() {
   lineasGeneradas = lineasInfo.length;
   text(myQuestion, (width / 2) - (width / 2) / 2, questionSize, width/2, height);
 
-  // Posicionar textarea
-  miTextarea.position((width / 4) - (width / 4) / 4, (height / 2 - questionSize) - miTextarea.elt.scrollHeight/ questionSize * 15);
-  miTextarea.size(width * 0.66, inputFontSize * .2);
-  miTextarea.style('height', miTextarea.elt.scrollHeight + 'px');
-
+  // Solo mostrar y posicionar textarea si estamos escribiendo
   if (estadoActual === "escribiendo") {
+    miTextarea.position((width / 4) - (width / 4) / 4, (height / 2 - questionSize) - miTextarea.elt.scrollHeight/ questionSize * 15);
+    miTextarea.size(width * 0.66, inputFontSize * .2);
+    miTextarea.style('height', miTextarea.elt.scrollHeight + 'px');
     miTextarea.elt.focus();
+  } else {
+    // Ocultar textarea completamente
+    miTextarea.position(-1000, -1000);
   }
 
   textAreaAndQuestionSize = questionSize * lineasGeneradas + questionSize;
 
-  // Mostrar letras que se desvanecen
+  // Mostrar letras que se desvanecen (solo desvanecimiento, sin flotar)
   mostrarLetrasDesvanecientes();
 
-  // DECIDIR SI USAR CARA O MOUSE
-  let posicionX, posicionY;
-
-  if (usarCara && caraDetectada) {
-    posicionX = caraX;
-    posicionY = caraY;
-
-    if (areaTexto.ancho > 0 && areaTexto.alto > 0) {
-      posicionX = constrain(posicionX, areaTexto.minX, areaTexto.maxX);
-      posicionY = constrain(posicionY, areaTexto.minY, areaTexto.maxY);
-    } else {
-      posicionX = constrain(posicionX, 0, width);
-      posicionY = constrain(posicionY, 0, height);
-    }
-  } else {
-    posicionX = mouseX;
-    posicionY = mouseY;
+  // Mostrar saved text en el centro
+  if (mostrarSavedText) {
+    mostrarTextoGuardado();
   }
 
   // Mostrar textos distorsionados
@@ -291,28 +166,80 @@ function draw() {
     if (textosAlpha < 255) {
       textosAlpha += 3;
     }
+    dibujarTextosDistorsionados(mouseX, mouseY);
+  }
+}
 
-    dibujarTextosDistorsionados(posicionX, posicionY);
+function mostrarTextoGuardado() {
+  // Inicializar el tiempo de inicio si es la primera vez
+  if (savedTextStartTime === 0) {
+    savedTextStartTime = millis();
+    console.log("⏰ Saved text iniciado en:", savedTextStartTime);
   }
 
-  // Mostrar estado actual
-  fill(255);
-  textSize(16);
-  textAlign(LEFT);
-  let estadoCara = usarCara ? (caraDetectada ? "Cara ✅" : "Buscando rostro...") : "Mouse";
-  text(`Estado: ${estadoActual} | Control: ${estadoCara}`, 20, height - 30);
+  let tiempoTranscurrido = millis() - savedTextStartTime;
 
-  // DEBUG VISUAL
-  if (mostrarTextos) {
-    dibujarDebugVisual(posicionX, posicionY);
+  switch(savedTextState) {
+    case "apareciendo":
+      // Aparición en 2 segundos (2000ms)
+      let progressAparecer = constrain(tiempoTranscurrido / 2000, 0, 1);
+      let easedAparecer = 1 - Math.pow(2, -8 * progressAparecer);
+      savedTextAlpha = easedAparecer * 255;
+
+      if (progressAparecer >= 1) {
+        savedTextAlpha = 255;
+        savedTextState = "visible";
+        savedTextTimer = savedTextDelay; // 3 segundos iniciales
+        savedTextStartTime = millis(); // Reiniciar tiempo para la siguiente fase
+        console.log("✅ Saved text completamente visible, timer iniciado");
+      }
+      break;
+
+    case "visible":
+      // Esperar el tiempo configurado (3 segundos + incrementos)
+      if (millis() - savedTextStartTime >= savedTextTimer) {
+        savedTextState = "desapareciendo";
+        savedTextStartTime = millis(); // Reiniciar tiempo para desaparición
+        console.log("🔄 Saved text comenzando a desaparecer");
+      }
+      break;
+
+    case "desapareciendo":
+      // Desaparición en 2 segundos (2000ms)
+      let progressDesaparecer = constrain((millis() - savedTextStartTime) / 2000, 0, 1);
+      let easedDesaparecer = progressDesaparecer * progressDesaparecer * progressDesaparecer;
+      savedTextAlpha = 255 - (easedDesaparecer * 255);
+
+      if (progressDesaparecer >= 1) {
+        savedTextAlpha = 0;
+        mostrarSavedText = false;
+        savedTextCycleCount++;
+        // Aumentar el tiempo de espera para el próximo ciclo
+        savedTextDelay = 3000 + (savedTextCycleCount * 1000); // Aumenta 1 segundo cada ciclo
+        savedTextState = "apareciendo";
+        savedTextStartTime = 0; // Resetear para próximo uso
+        console.log("✅ Saved text desaparecido completamente - proceso puede continuar");
+      }
+      break;
+  }
+
+  if (savedTextAlpha > 0) {
+    textFont(customFont);
+    textAlign(CENTER, CENTER);
+    textSize(tamanoFuente);
+    fill(255, 177, 88, savedTextAlpha);
+
+    let lineas = dividirEnLineas(savedText, width * 0.8, tamanoFuente);
+    for (let i = 0; i < lineas.length; i++) {
+      text(lineas[i], width/2, height/2 + (i - lineas.length/2) * tamanoFuente * 1.2);
+    }
   }
 }
 
 function actualizarEfectos() {
-  // Actualizar intensidad del glitch basado en movimiento
   let velocidad = dist(pmouseX, pmouseY, mouseX, mouseY);
-  glitchIntensidad = lerp(glitchIntensidad, min(velocidad * 0.8, 30), 0.1); // Más intenso
-  chromaticAberration = lerp(chromaticAberration, glitchIntensidad * 0.5, 0.1); // Más aberración
+  glitchIntensidad = lerp(glitchIntensidad, min(velocidad * 0.8, 30), 0.1);
+  chromaticAberration = lerp(chromaticAberration, glitchIntensidad * 0.5, 0.1);
 }
 
 function dibujarElementosFondo() {
@@ -359,7 +286,6 @@ function mostrarLetrasDesvanecientes() {
   for (let i = fadingLetters.length - 1; i >= 0; i--) {
     let letter = fadingLetters[i];
     letter.alpha -= letter.fadeSpeed;
-    letter.y -= letter.floatSpeed;
 
     if (letter.alpha > 0) {
       push();
@@ -374,316 +300,178 @@ function mostrarLetrasDesvanecientes() {
 }
 
 function dibujarTextosDistorsionados(posX, posY) {
+  console.log("🎨 dibujarTextosDistorsionados llamado - textosAlpha:", textosAlpha, "total textos:", textosDistorsionados.length);
+
+  let textosActivos = textosDistorsionados.filter(t => t.activo);
+  console.log("📊 Textos activos:", textosActivos.length);
+
   for (let i = 0; i < textosDistorsionados.length; i++) {
     let textoObj = textosDistorsionados[i];
 
-    // Efectos basados en la posición del mouse/cara
-    let distancia = dist(posX, posY, textoObj.x, textoObj.y);
-    let influencia = map(distancia, 0, 400, 1.5, 0, true); // Más influencia
+    // Solo mostrar textos que han sido activados
+    if (!textoObj.activo) {
+      console.log("❌ Texto", i, "INACTIVO - saltando");
+      continue;
+    }
 
-    // Aplicar efectos individuales
+    console.log("✅ Dibujando texto activo", i, ":", textoObj.texto.substring(0, 30) + "...");
+
+    let distancia = dist(posX, posY, textoObj.x, textoObj.y);
+    let influencia = map(distancia, 0, 400, 1.5, 0, true);
+
     aplicarEfectosTexto(textoObj, influencia, i);
   }
 }
 
+
 function aplicarEfectosTexto(textoObj, influencia, index) {
+  console.log("   🖌️ aplicarEfectosTexto para texto", index, "en pos:", textoObj.x, textoObj.y);
+
   push();
 
-  // Configuración base del texto
   textFont(customFont);
   textAlign(textoObj.align, textoObj.baseline);
 
-  // POSICIÓN CENTRALIZADA MEJORADA
-  let centroX = width/2 + (textoObj.x - width/2) * 0.8; // Empujar hacia el centro
+  let centroX = width/2 + (textoObj.x - width/2) * 0.8;
   let centroY = height/2 + (textoObj.y - height/2) * 0.8;
 
-  // Movimiento orgánico más exagerado
-  let offsetX = sin(tiempo * textoObj.velocidad * 1.5 + index * 0.7) * textoObj.amplitud * 1.5;
-  let offsetY = cos(tiempo * textoObj.velocidad * 1.2 + index * 0.9) * textoObj.amplitud * 1.2;
+  let offsetX = sin(tiempo * textoObj.velocidad * 1.5 + index * 0.7) * textoObj.amplitud * 2;
+  let offsetY = cos(tiempo * textoObj.velocidad * 1.2 + index * 0.9) * textoObj.amplitud * 1.8;
 
   let xFinal = centroX + offsetX;
   let yFinal = centroY + offsetY;
 
-  // ROTACIÓN MUCHO MÁS EXAGERADA
-  let rotacionBase = textoObj.rotacion;
   let rotacionDinamica = sin(tiempo * textoObj.velocidad * 2 + index) * textoObj.rotacionMaxima;
-  let rotacionTotal = rotacionBase + rotacionDinamica;
+  let rotacionTotal = textoObj.rotacion + rotacionDinamica;
+
+  console.log("   📍 Posición final:", xFinal, yFinal, "rotación:", rotacionTotal);
 
   translate(xFinal, yFinal);
   rotate(rotacionTotal);
 
-  // Efectos de distorsión individuales MEJORADOS
-  if (textoObj.efecto === 'glitch') {
-    aplicarEfectoGlitch(textoObj, 0, 0, influencia);
-  } else if (textoObj.efecto === 'outline') {
-    aplicarEfectoOutline(textoObj, 0, 0, influencia);
-  } else if (textoObj.efecto === 'chromatic') {
-    aplicarEfectoChromatic(textoObj, 0, 0, influencia);
-  } else if (textoObj.efecto === 'wave') {
-    aplicarEfectoWave(textoObj, 0, 0, influencia);
-  } else if (textoObj.efecto === 'curve') {
-    aplicarEfectoCurva(textoObj, 0, 0, influencia);
-  } else if (textoObj.efecto === 'taper') {
-    aplicarEfectoTaper(textoObj, 0, 0, influencia);
-  } else {
-    aplicarEfectoDefault(textoObj, 0, 0, influencia);
-  }
+  aplicarEfectoLetrasFlotantes(textoObj, 0, 0, influencia);
 
   pop();
+
+  console.log("   ✅ Efectos aplicados para texto", index);
 }
 
-// NUEVO EFECTO: TEXTO EN CURVA ORGÁNICA
-function aplicarEfectoCurva(textoObj, x, y, influencia) {
+function aplicarEfectoLetrasFlotantes(textoObj, x, y, influencia) {
+  console.log("     🔤 aplicarEfectoLetrasFlotantes - texto:", textoObj.texto.substring(0, 20) + "...");
+
   let alpha = textosAlpha * textoObj.opacidad;
   let tamano = textoObj.tamano;
   let chars = textoObj.texto.split('');
 
-  // Definir curva orgánica tipo "S"
-  let radioCurva = tamano * 2 * influencia;
-  let anguloInicial = tiempo * 0.5;
+  textSize(tamano);
 
-  // ⭐⭐ NUEVO: CONTROL DE SEPARACIÓN ⭐⭐
-  let separacionBase = tamano * 1.2; // ← AJUSTA ESTE VALOR (1.2 = 120% del tamaño)
-  let separacionExtra = 5; // ← SEPARACIÓN ADICIONAL EN PÍXELES
+  let anchoTotal = textWidth(textoObj.texto);
+  console.log("     📏 Ancho total:", anchoTotal, "tamaño:", tamano, "alpha:", alpha);
 
   for (let i = 0; i < chars.length; i++) {
-    let progreso = i / (chars.length - 1);
+    let char = chars[i];
+    if (char === ' ') continue;
 
-    // Curva suave en S
-    let angulo = anguloInicial + progreso * PI;
-    let curvaX = sin(angulo) * radioCurva;
-    let curvaY = cos(angulo * 0.7) * radioCurva * 0.5;
+    let baseX = x - anchoTotal/2 + textWidth(textoObj.texto.substring(0, i));
+    let baseY = y;
 
-    // ⭐⭐ CÁLCULO DE POSICIÓN CON MÁS SEPARACIÓN ⭐⭐
-    let espaciadoTotal = separacionBase + separacionExtra;
-    let charX = curvaX + (i - chars.length/2) * espaciadoTotal;
-    let charY = curvaY;
+    let floatOffsetX = sin(tiempo * 3 + i * 0.5) * 20 * influencia;
+    let floatOffsetY = cos(tiempo * 2.5 + i * 0.7) * 15 * influencia;
 
-    // Rotación individual de cada carácter
-    let rotacionChar = sin(angulo + tiempo) * 0.3;
+    let charRotation = sin(tiempo * 4 + i) * 0.5;
 
     push();
-    translate(charX, charY);
-    rotate(rotacionChar);
+    translate(baseX + floatOffsetX, baseY + floatOffsetY);
+    rotate(charRotation);
 
-    // Alternar entre fill y stroke
-    if (random() > 0.3) {
-      fill(textoObj.color.levels[0], textoObj.color.levels[1], textoObj.color.levels[2], alpha * 0.8);
-      noStroke();
-    } else {
-      noFill();
-      stroke(textoObj.color.levels[0], textoObj.color.levels[1], textoObj.color.levels[2], alpha);
-      strokeWeight(2);
-    }
-
-    textSize(tamano * (0.8 + sin(progreso * PI) * 0.4));
-    text(chars[i], 0, 0);
-    pop();
-  }
-}
-
-// NUEVO EFECTO: TAPER CON GRADIENTE DE TAMAÑO
-function aplicarEfectoTaper(textoObj, x, y, influencia) {
-  let alpha = textosAlpha * textoObj.opacidad;
-  let tamanoBase = textoObj.tamano;
-  let chars = textoObj.texto.split('');
-
-  for (let i = 0; i < chars.length; i++) {
-    let progreso = i / (chars.length - 1);
-
-    // Efecto taper: más grande en el centro
-    let scaleFactor = sin(progreso * PI) * 0.6 + 0.4;
-    let tamanoActual = tamanoBase * scaleFactor;
-
-    // Posición con espaciado variable
-    let charX = x + (i - chars.length/2) * tamanoBase * 0.6;
-
-    push();
-
-    // Solo stroke para algunos caracteres
-    if (i % 3 === 0) {
-      noFill();
-      stroke(textoObj.color.levels[0], textoObj.color.levels[1], textoObj.color.levels[2], alpha);
-      strokeWeight(3);
-    } else {
-      noStroke();
+    if (random() > 0.5) {
       fill(textoObj.color.levels[0], textoObj.color.levels[1], textoObj.color.levels[2], alpha * 0.9);
-    }
-
-    // Rotación individual exagerada
-    rotate(sin(tiempo * 3 + i) * 0.5);
-
-    textSize(tamanoActual);
-    text(chars[i], charX, y + sin(tiempo * 2 + i) * 10);
-    pop();
-  }
-}
-
-function aplicarEfectoGlitch(textoObj, x, y, influencia) {
-  let alpha = textosAlpha * textoObj.opacidad;
-
-  // Texto principal con glitch MÁS EXAGERADO
-  fill(textoObj.color.levels[0], textoObj.color.levels[1], textoObj.color.levels[2], alpha);
-  textSize(textoObj.tamano);
-  text(textoObj.texto, x, y);
-
-  // Efectos de glitch aleatorios MÁS FRECUENTES
-  if (random() < 0.5 * influencia) {
-    let glitchX = x + random(-glitchIntensidad * 2, glitchIntensidad * 2);
-    let glitchY = y + random(-glitchIntensidad, glitchIntensidad);
-
-    // Capas de glitch con colores contrastantes
-    fill(255, 0, 0, alpha * 0.8);
-    text(textoObj.texto, glitchX, glitchY);
-
-    fill(0, 255, 255, alpha * 0.6);
-    text(textoObj.texto, glitchX + 4, glitchY - 4);
-  }
-}
-
-function aplicarEfectoOutline(textoObj, x, y, influencia) {
-  let alpha = textosAlpha * textoObj.opacidad;
-  let tamano = textoObj.tamano;
-
-  // Outline MÁS GRUESO
-  stroke(255, 255, 0, alpha);
-  strokeWeight(4);
-  noFill();
-  textSize(tamano);
-  text(textoObj.texto, x, y);
-
-  // Relleno con efecto de parpadeo MÁS RÁPIDO
-  if (sin(tiempo * 8) > 0) {
-    noStroke();
-    fill(textoObj.color.levels[0], textoObj.color.levels[1], textoObj.color.levels[2], alpha * 0.4);
-    text(textoObj.texto, x, y);
-  }
-}
-
-function aplicarEfectoChromatic(textoObj, x, y, influencia) {
-  let alpha = textosAlpha * textoObj.opacidad;
-  let tamano = textoObj.tamano;
-  let aberration = chromaticAberration * influencia * 2; // MÁS ABERRACIÓN
-
-  // Capas de aberración cromática MÁS SEPARADAS
-  fill(255, 0, 0, alpha * 0.9);
-  textSize(tamano);
-  text(textoObj.texto, x - aberration * 1.5, y);
-
-  fill(0, 255, 0, alpha * 0.9);
-  text(textoObj.texto, x, y + aberration * 0.5);
-
-  fill(0, 0, 255, alpha * 0.9);
-  text(textoObj.texto, x + aberration * 1.5, y - aberration * 0.5);
-
-  // Capa principal SOLO STROKE
-  noFill();
-  stroke(255, alpha);
-  strokeWeight(1);
-  text(textoObj.texto, x, y);
-}
-
-function aplicarEfectoWave(textoObj, x, y, influencia) {
-  let alpha = textosAlpha * textoObj.opacidad;
-  let tamano = textoObj.tamano;
-
-  // Efecto de onda en el texto MÁS EXAGERADO
-  let chars = textoObj.texto.split('');
-  for (let i = 0; i < chars.length; i++) {
-    let charX = x + textWidth(textoObj.texto.substring(0, i));
-    let waveOffset = sin(tiempo * 4 + i * 0.7) * 15 * influencia; // MÁS AMPLITUD
-
-    // Alternar entre fill y stroke
-    if (i % 2 === 0) {
       noStroke();
-      fill(textoObj.color.levels[0], textoObj.color.levels[1], textoObj.color.levels[2], alpha);
     } else {
       noFill();
       stroke(textoObj.color.levels[0], textoObj.color.levels[1], textoObj.color.levels[2], alpha);
       strokeWeight(2);
     }
 
-    textSize(tamano + sin(tiempo * 3 + i) * 8); // MÁS VARIACIÓN DE TAMAÑO
-    text(chars[i], charX, y + waveOffset);
-  }
-}
-
-function aplicarEfectoDefault(textoObj, x, y, influencia) {
-  let alpha = textosAlpha * textoObj.opacidad;
-
-  // Efecto base con distorsión MÁS EXAGERADA
-  if (random() > 0.4) {
-    fill(textoObj.color.levels[0], textoObj.color.levels[1], textoObj.color.levels[2], alpha);
-  } else {
-    noFill();
-    stroke(textoObj.color.levels[0], textoObj.color.levels[1], textoObj.color.levels[2], alpha);
-    strokeWeight(2);
+    textSize(tamano * (0.8 + sin(tiempo + i) * 0.3));
+    text(char, 0, 0);
+    pop();
   }
 
-  textSize(textoObj.tamano);
-
-  // ROTACIÓN MUCHO MÁS EXAGERADA
-  let rotacionExtra = sin(tiempo * 3) * 0.8 * influencia;
-  rotate(rotacionExtra);
-
-  text(textoObj.texto, x, y);
+  console.log("     ✅ Letras dibujadas");
 }
 
-function dibujarDebugVisual(posX, posY) {
-  // Área del texto
-  noFill();
-  stroke(255, 0, 0, 80);
-  strokeWeight(1);
-  rect(areaTexto.minX, areaTexto.minY, areaTexto.ancho, areaTexto.alto);
-
-  // Posición actual
-  fill(0, 255, 0, 150);
-  noStroke();
-  ellipse(posX, posY, 12, 12);
-
-  // Centro del canvas
-  fill(255, 0, 255, 100);
-  ellipse(width/2, height/2, 8, 8);
-
-  // Info de debug
-  fill(255);
-  textSize(12);
-  textAlign(LEFT);
-  text(`Textos: ${textosDistorsionados.length}`, 20, height - 80);
-  text(`Alpha: ${textosAlpha.toFixed(0)}`, 20, height - 65);
-  text(`Glitch: ${glitchIntensidad.toFixed(1)}`, 20, height - 50);
-  text(`Rotación MAX: ${max(...textosDistorsionados.map(t => t.rotacionMaxima)).toFixed(2)}`, 20, height - 35);
-}
 function inputToTextFast() {
-  // Esta función ya no genera puntos, solo procesa el texto
   let anchoMaximo = width * 0.65;
   let lineas = dividirEnLineas(savedText, anchoMaximo, tamanoFuente);
-  // No hacemos nada con points[] ya que fue eliminado
 }
 
 async function iniciarProcesoCompleto() {
-  if (generando) return;
+  console.log("🚀 iniciarProcesoCompleto() llamado");
+  console.log("📝 savedText:", savedText);
+
+  if (generando) {
+    console.log("❌ Ya está generando, retornando");
+    return;
+  }
   generando = true;
 
   estadoActual = "desvaneciendo";
-  createFadingLetters(miTextarea.value());
-  await esperarDesvanecimiento();
+  console.log("🔄 Estado: desvaneciendo");
 
-  estadoActual = "procesando";
-  botonEnviar.style('opacity', '0');
-  botonEnviar.style('transition', 'opacity 0.5s');
-  miTextarea.attribute('placeholder', '');
-
-  await new Promise(resolve => setTimeout(resolve, 500));
+  // Ocultar textarea y botón inmediatamente
+  miTextarea.position(-1000, -1000);
   botonEnviar.hide();
 
+  createFadingLetters(miTextarea.value());
+  console.log("📜 Letras desvanecientes creadas");
+
+  await esperarDesvanecimiento();
+  console.log("✅ Desvanecimiento completado");
+
+  // Mostrar saved text en el centro
+  mostrarSavedText = true;
+  savedTextAlpha = 0;
+  savedTextTimer = 3000; // 3 segundos en milisegundos
+  savedTextState = "apareciendo";
+  savedTextStartTime = 0; // Resetear el tiempo
+  console.log("💾 Saved text mostrándose");
+
+  // Esperar a que termine la animación del saved text
+  await new Promise(resolve => {
+    const checkSavedText = () => {
+      if (!mostrarSavedText) {
+        console.log("✅ Saved text completado - continuando proceso");
+        resolve();
+      } else {
+        setTimeout(checkSavedText, 100);
+      }
+    };
+    checkSavedText();
+  });
+
+  estadoActual = "procesando";
+  console.log("🔄 Estado: procesando - generando textos con IA");
   await generarTextosConIA();
+  console.log("✅ Textos con IA generados");
 
   estadoActual = "mostrandoTextos";
   mostrarTextos = true;
   textosAlpha = 0;
 
+  console.log("🎨 Estado: mostrandoTextos - mostrarTextos:", mostrarTextos);
+  console.log("📊 textosDistorsionados length:", textosDistorsionados.length);
+
+  // Activar solo el primer texto inicialmente
+  if (textosDistorsionados.length > 0) {
+    textosDistorsionados[0].activo = true;
+    console.log("✅ Primer texto activado");
+  } else {
+    console.log("❌ No hay textos para activar");
+  }
+
   generando = false;
+  console.log("🏁 Proceso completo terminado");
 }
 
 function esperarDesvanecimiento() {
@@ -727,8 +515,7 @@ function createFadingLetters(text) {
           x: charX,
           y: charY,
           alpha: 255,
-          fadeSpeed: random(2, 5),
-          floatSpeed: random(0.2, 0.5),
+          fadeSpeed: random(3, 6), // Más rápido para desaparecer pronto
           size: tamanoFuente,
           color: color(255, 177, 88),
           font: customFont
@@ -742,11 +529,11 @@ function createFadingLetters(text) {
 }
 
 async function generarTextosConIA() {
+  console.log("🤖 generarTextosConIA() llamado");
   let textoOriginal = savedText;
+  console.log("📄 Texto original:", textoOriginal);
 
   try {
-    console.log("🔄 Generando textos distorsionados...");
-
     let todosLosTextos = [];
     const todosLosTipos = [
       'polarizar_negativo', 'distorsion_publicitaria', 'exagerar',
@@ -756,38 +543,43 @@ async function generarTextosConIA() {
     ];
 
     for (let i = 0; i < 13; i++) {
+      console.log("🔄 Generando texto", i + 1, "de 13");
       let textoGenerado = await distorsionadorTexto.distorsionarTexto(textoOriginal, todosLosTipos[i]);
+      console.log("📝 Texto generado", i + 1, ":", textoGenerado.substring(0, 50) + "...");
       todosLosTextos.push(textoGenerado);
       await new Promise(resolve => setTimeout(resolve, 200));
     }
 
-    // Combinar textos
     let textoCombinado = todosLosTextos.join(" ") + " " + textoOriginal;
+    console.log("🎯 Llamando generarTextosVisuales con", todosLosTextos.length, "textos");
     generarTextosVisuales(textoCombinado, todosLosTextos);
 
   } catch (error) {
-    console.error("❌ Error generando textos:", error);
+    console.error("❌ Error en generarTextosConIA:", error);
+    console.log("🔄 Usando texto original como fallback");
     generarTextosVisuales(savedText, [savedText]);
   }
 }
 
+
 function generarTextosVisuales(textoCompleto, textosIndividuales) {
+  console.log("🎨 generarTextosVisuales() llamado");
+  console.log("📊 textosIndividuales recibidos:", textosIndividuales.length);
+
   textosDistorsionados = [];
 
-  // Configurar área de texto MÁS CENTRALIZADA
-  areaTexto.minX = width * 0.15;  // Más estrecho
-  areaTexto.maxX = width * 0.85;
-  areaTexto.minY = height * 0.25; // Más centrado verticalmente
-  areaTexto.maxY = height * 0.75;
+  // Área MÁS VISIBLE - usar casi toda la pantalla
+  areaTexto.minX = width * 0.1;
+  areaTexto.maxX = width * 0.9;
+  areaTexto.minY = height * 0.2;
+  areaTexto.maxY = height * 0.8;
   areaTexto.ancho = areaTexto.maxX - areaTexto.minX;
   areaTexto.alto = areaTexto.maxY - areaTexto.minY;
 
-  // Crear textos individuales con efectos únicos MEJORADOS
-  let efectos = ['glitch', 'outline', 'chromatic', 'wave', 'curve', 'taper', 'default'];
   let colores = [
-    color(255, 50, 50),    // Rojo
-    color(50, 255, 50),    // Verde
-    color(50, 50, 255),    // Azul
+    color(255, 50, 50),    // Rojo brillante
+    color(50, 255, 50),    // Verde brillante
+    color(50, 50, 255),    // Azul brillante
     color(255, 255, 50),   // Amarillo
     color(255, 50, 255),   // Magenta
     color(50, 255, 255),   // Cian
@@ -797,32 +589,84 @@ function generarTextosVisuales(textoCompleto, textosIndividuales) {
 
   for (let i = 0; i < textosIndividuales.length; i++) {
     let texto = textosIndividuales[i];
-    if (texto.length < 3) continue; // Textos más cortos permitidos
+    if (texto.length < 3) continue;
 
+    // POSICIONES MÁS CENTRALES Y VISIBLES
     let textoObj = {
       texto: texto,
-      x: random(areaTexto.minX, areaTexto.maxX),
-      y: random(areaTexto.minY, areaTexto.maxY),
-      tamano: random(15, 45), // Tamaños más variados
+      x: width/2 + random(-200, 200),  // Centrado con variación
+      y: height/2 + random(-150, 150), // Centrado con variación
+      tamano: random(25, 40),          // Tamaño más visible
       color: random(colores),
-      opacidad: random(0.6, 1.0),
-      efecto: random(efectos),
-      velocidad: random(0.3, 1.0),  // Más rápido
-      amplitud: random(10, 50), // Más amplitud
-      align: random(['LEFT', 'CENTER', 'RIGHT']),
-      baseline: random(['TOP', 'MIDDLE', 'BOTTOM']),
+      opacidad: random(0.8, 1.0),      // Más opaco
+      velocidad: random(0.5, 1.2),     // Más movimiento
+      amplitud: random(20, 40),        // Más amplitud
+      align: 'CENTER',
+      baseline: 'CENTER',
       rotacion: random(-0.3, 0.3),
-      rotacionMaxima: random(0.5, 1.5) // ROTACIONES MUCHO MÁS EXAGERADAS
+      rotacionMaxima: random(0.5, 1.0),
+      activo: false
     };
 
     textosDistorsionados.push(textoObj);
   }
 
-  console.log("🎨 Textos visuales generados:", textosDistorsionados.length);
-  console.log("🌀 Efectos aplicados:", textosDistorsionados.map(t => t.efecto));
+  // DEBUG: Activar el primer texto automáticamente para prueba
+  if (textosDistorsionados.length > 0) {
+    textosDistorsionados[0].activo = true;
+  }
+  console.log("✅ textosDistorsionados creados:", textosDistorsionados.length);
 }
 
-// Funciones auxiliares que se mantienen igual
+
+function mousePressed() {
+  if (mouseButton === LEFT) {
+    console.log("🖱️ CLICK detectado - mostrarTextos:", mostrarTextos, "textosDistorsionados:", textosDistorsionados.length);
+
+    // Activar el siguiente texto distorsionado con cada click
+    if (mostrarTextos && textosDistorsionados.length > 0) {
+      let siguienteInactivo = textosDistorsionados.findIndex(t => !t.activo);
+      console.log("🔍 Buscando siguiente inactivo:", siguienteInactivo);
+
+      if (siguienteInactivo !== -1) {
+        textosDistorsionados[siguienteInactivo].activo = true;
+        console.log("✅ Texto", siguienteInactivo, "activado:", textosDistorsionados[siguienteInactivo].texto.substring(0, 30) + "...");
+      } else {
+        console.log("✅ Todos los textos están activos");
+      }
+    } else {
+      console.log("❌ No se pueden activar textos - condiciones no cumplidas");
+    }
+    return false;
+  }
+}
+function keyPressed() {
+  if (keyCode === ESCAPE) {
+    resetearInterfaz();
+    return false;
+  }
+}
+
+function resetearInterfaz() {
+  estadoActual = "escribiendo";
+  mostrarTextos = false;
+  textosAlpha = 0;
+  textosDistorsionados = [];
+  mostrarSavedText = false;
+  savedTextAlpha = 0;
+  savedTextCycleCount = 0;
+  savedTextDelay = 180;
+  miTextarea.value('');
+
+  // Mostrar textarea y botón nuevamente
+  miTextarea.position((width / 4) - (width / 4) / 4, (height / 2 - questionSize) - miTextarea.elt.scrollHeight/ questionSize * 15);
+  miTextarea.elt.focus();
+
+  botonEnviar.show();
+  botonEnviar.style('opacity', '1');
+}
+
+// Funciones auxiliares
 function obtenerLineasTexto(texto, anchoMaximo) {
   textSize(questionSize);
   let palabras = texto.split(' ');
@@ -880,33 +724,4 @@ function dividirEnLineas(texto, anchoMaximo, tamanoFuente) {
   }
 
   return lineas;
-}
-
-function mousePressed() {
-  if (mouseButton === LEFT) {
-    usarCara = !usarCara;
-    console.log(usarCara ? "🔄 Usando detección de cara" : "🖱️ Usando mouse");
-    return false;
-  }
-}
-
-function keyPressed() {
-  if (keyCode === ESCAPE) {
-    resetearInterfaz();
-    return false;
-  }
-}
-
-function resetearInterfaz() {
-  estadoActual = "escribiendo";
-  mostrarTextos = false;
-  textosAlpha = 0;
-  textosDistorsionados = [];
-  miTextarea.value('');
-  miTextarea.elt.focus();
-
-  botonEnviar.show();
-  botonEnviar.style('opacity', '1');
-
-  console.log("🔄 Interfaz reseteada");
 }
