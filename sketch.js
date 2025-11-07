@@ -9,6 +9,9 @@ let textAreaAndQuestionSize = 0;
 let tamanoFuente = 40;
 let savedTextStartTime = 0;
 
+let savedTextPosX = 0;  // ← Agregar esta línea
+let savedTextPosY = 0;  // ← Agregar esta línea
+
 let areaTexto = {
   minX: 0,
   maxX: 0,
@@ -184,6 +187,8 @@ function mostrarTextoGuardado() {
   // Inicializar el tiempo de inicio si es la primera vez
   if (savedTextStartTime === 0) {
     savedTextStartTime = millis();
+    // Generar nueva posición aleatoria al iniciar
+    generarNuevaPosicion();
     console.log("⏰ Saved text iniciado en:", savedTextStartTime);
   }
 
@@ -192,12 +197,12 @@ function mostrarTextoGuardado() {
   switch(savedTextState) {
     case "apareciendo":
       // Aparición en 0.2 segundos (200ms) - 12 frames a 60fps
-      let progressAparecer = constrain(tiempoTranscurrido / 200, 0, 1);
+      let progressAparecer = constrain(tiempoTranscurrido / 2000, 0, 1);
       let easedAparecer = 1 - Math.pow(2, -10 * progressAparecer);
-      savedTextAlpha = easedAparecer * 255;
+      savedTextAlpha = (easedAparecer * 255);
 
       if (progressAparecer >= 1) {
-        savedTextAlpha = 255;
+        savedTextAlpha = 255 ;
         savedTextState = "visible";
         savedTextStartTime = millis(); // Reiniciar tiempo para la siguiente fase
         console.log("✅ Saved text completamente visible");
@@ -206,7 +211,7 @@ function mostrarTextoGuardado() {
 
     case "visible":
       // Mantener visible por 2-3 segundos
-      if (millis() - savedTextStartTime >= 2000) { // 2 segundos visible
+      if (millis() - savedTextStartTime >= 1500) { // 2 segundos visible
         savedTextState = "desapareciendo";
         savedTextStartTime = millis(); // Reiniciar tiempo para desaparición
         console.log("🔄 Saved text comenzando a desaparecer");
@@ -215,7 +220,7 @@ function mostrarTextoGuardado() {
 
     case "desapareciendo":
       // Desaparición en 0.2 segundos (200ms) - 12 frames
-      let progressDesaparecer = constrain((millis() - savedTextStartTime) / 200, 0, 1);
+      let progressDesaparecer = constrain((millis() - savedTextStartTime) / 2000, 0, 1);
       let easedDesaparecer = progressDesaparecer * progressDesaparecer * progressDesaparecer;
       savedTextAlpha = 255 - (easedDesaparecer * 255);
 
@@ -233,6 +238,8 @@ function mostrarTextoGuardado() {
       if (millis() - savedTextStartTime >= tiempoEspera) {
         savedTextState = "apareciendo";
         savedTextStartTime = millis(); // Reiniciar tiempo para aparición
+        // Generar nueva posición aleatoria para el próximo ciclo
+        generarNuevaPosicion();
         savedTextCycleCount++; // Incrementar contador de ciclos
         console.log("🔄 Saved text reapareciendo - ciclo:", savedTextCycleCount, "espera:", tiempoEspera, "ms");
       }
@@ -249,15 +256,39 @@ function mostrarTextoGuardado() {
 
     // Texto simple y visible
     noStroke();
-    fill(255, 177, 88, savedTextAlpha);
+    fill(255, 177, 88, savedTextAlpha - savedTextCycleCount * 30);
 
-    let lineas = dividirEnLineas(savedText, width * 0.8, tamanoFuente);
+    let lineas = dividirEnLineas(savedText, width * 0.6, tamanoFuente); // Ancho reducido para mejor legibilidad
+
+    // Calcular altura total del texto
+    let alturaTotal = lineas.length * tamanoFuente * 1.2;
+
+    // Usar la posición guardada
+    let posX = savedTextPosX;
+    let posY = savedTextPosY;
+
+    // Asegurar que el texto no se salga de los bordes
+    posX = constrain(posX, width * 0.2, width * 0.8);
+    posY = constrain(posY, alturaTotal/2 + 20, height - alturaTotal/2 - 20);
+
     for (let i = 0; i < lineas.length; i++) {
-      text(lineas[i], width/2, height/2 + (i - lineas.length/2) * tamanoFuente * 1.2);
+      text(lineas[i], posX, posY + (i - lineas.length/2) * tamanoFuente * 1.2);
     }
 
     pop();
   }
+}
+
+// Función para generar nueva posición aleatoria pero legible
+function generarNuevaPosicion() {
+  let lineas = dividirEnLineas(savedText, width * 0.6, tamanoFuente);
+  let alturaTotal = lineas.length * tamanoFuente * 1.2;
+
+  // Generar posición aleatoria pero dentro de márgenes seguros
+  savedTextPosX = random(width * 0.2, width * 0.8);
+  savedTextPosY = random(alturaTotal/2 + 50, height - alturaTotal/2 - 50);
+
+  console.log("🎯 Nueva posición:", Math.round(savedTextPosX), Math.round(savedTextPosY));
 }
 
 function actualizarEfectos() {
