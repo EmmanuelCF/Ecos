@@ -381,8 +381,6 @@ function aplicarEfectosTexto(textoObj, influencia, index) {
 }
 
 function aplicarEfectoLetrasFlotantes(textoObj, x, y, influencia) {
-  console.log("     🔤 aplicarEfectoLetrasFlotantes - texto:", textoObj.texto.substring(0, 20) + "...");
-
   let alpha = textosAlpha * textoObj.opacidad;
   let tamano = textoObj.tamano;
   let chars = textoObj.texto.split('');
@@ -390,39 +388,102 @@ function aplicarEfectoLetrasFlotantes(textoObj, x, y, influencia) {
   textSize(tamano);
 
   let anchoTotal = textWidth(textoObj.texto);
-  console.log("     📏 Ancho total:", anchoTotal, "tamaño:", tamano, "alpha:", alpha);
+
+  // Tiempo desde que se activó el texto (en segundos)
+  let tiempoActivo = (millis() - textoObj.tiempoActivacion) / 1000;
+
+  // Control de fase: 0-3 segundos = juntas, 3-6 segundos = transición, 6+ segundos = separadas
+  let fase = 0;
+  if (tiempoActivo < 3) {
+    fase = 0; // Letras juntas
+  } else if (tiempoActivo < 12) {
+    fase = map(tiempoActivo, 3, 12, 0, 1); // Transición suave
+  } else {
+    fase = 1; // Completamente separadas
+  }
 
   for (let i = 0; i < chars.length; i++) {
     let char = chars[i];
     if (char === ' ') continue;
 
+    // Posición base para texto legible
     let baseX = x - anchoTotal/2 + textWidth(textoObj.texto.substring(0, i));
     let baseY = y;
 
-    let floatOffsetX = sin(tiempo * 3 + i * 0.5) * 20 * influencia;
-    let floatOffsetY = cos(tiempo * 2.5 + i * 0.7) * 15 * influencia;
-
-    let charRotation = sin(tiempo * 4 + i) * 0.5;
-
-    push();
-    translate(baseX + floatOffsetX, baseY + floatOffsetY);
-    rotate(charRotation);
-
-    if (random() > 0.5) {
-      fill(textoObj.color.levels[0], textoObj.color.levels[1], textoObj.color.levels[2], alpha * 0.9);
-      noStroke();
-    } else {
-      noFill();
-      stroke(textoObj.color.levels[0], textoObj.color.levels[1], textoObj.color.levels[2], alpha);
-      strokeWeight(2);
+    // Destino random para cuando estén separadas
+    if (!textoObj.destinos) textoObj.destinos = [];
+    if (!textoObj.destinos[i]) {
+      textoObj.destinos[i] = {
+        x: random(-width * 0.4, width * 0.4),
+        y: random(-height * 0.4, height * 0.4),
+        rot: random(-PI, PI)
+      };
     }
 
-    textSize(tamano * (0.8 + sin(tiempo + i) * 0.3));
+    let destino = textoObj.destinos[i];
+
+    // Interpolar entre posición junta y posición separada según la fase
+    let currentX, currentY, currentRot;
+
+    if (fase === 0) {
+      // Fase 1: Letras juntas (posición original)
+      currentX = baseX;
+      currentY = baseY;
+      currentRot = 0;
+    } else if (fase < 1) {
+      // Fase 2: Transición suave
+      currentX = lerp(baseX, baseX + destino.x, fase);
+      currentY = lerp(baseY, baseY + destino.y, fase);
+      currentRot = lerp(0, destino.rot, fase);
+    } else {
+      // Fase 3: Completamente separadas + movimiento flotante continuo
+      currentX = baseX + destino.x + sin(tiempo * 2 + i) * 30;
+      currentY = baseY + destino.y + cos(tiempo * 1.8 + i) * 25;
+      currentRot = destino.rot + sin(tiempo * 3 + i) * 0.3;
+    }
+
+    // Movimiento flotante suave adicional (más suave en las primeras fases)
+    let floatIntensity = fase * 0.5 + 0.5; // Aumenta la intensidad según la fase
+    let floatOffsetX = sin(tiempo * 3 + i * 0.5) * 15 * influencia * floatIntensity;
+    let floatOffsetY = cos(tiempo * 2.5 + i * 0.7) * 12 * influencia * floatIntensity;
+
+    push();
+    translate(currentX + floatOffsetX, currentY + floatOffsetY);
+    rotate(currentRot);
+
+    // Efectos visuales que también evolucionan con la fase
+    if (fase < 0.5) {
+      // Fases tempranas: texto más sólido y legible
+      fill(textoObj.color.levels[0], textoObj.color.levels[1], textoObj.color.levels[2], alpha);
+      noStroke();
+      textSize(tamano);
+    } else if (fase < 0.8) {
+      // Transición: empezar a variar
+      if (random() > 0.3) {
+        fill(textoObj.color.levels[0], textoObj.color.levels[1], textoObj.color.levels[2], alpha * 0.9);
+        noStroke();
+      } else {
+        noFill();
+        stroke(textoObj.color.levels[0], textoObj.color.levels[1], textoObj.color.levels[2], alpha);
+        strokeWeight(2);
+      }
+      textSize(tamano * (0.9 + sin(tiempo + i) * 0.2));
+    } else {
+      // Fase final: máximo caos visual
+      if (random() > 0.5) {
+        fill(textoObj.color.levels[0], textoObj.color.levels[1], textoObj.color.levels[2], alpha * 0.8);
+        noStroke();
+      } else {
+        noFill();
+        stroke(textoObj.color.levels[0], textoObj.color.levels[1], textoObj.color.levels[2], alpha);
+        strokeWeight(2);
+      }
+      textSize(tamano * (0.8 + sin(tiempo + i) * 0.4));
+    }
+
     text(char, 0, 0);
     pop();
   }
-
-  console.log("     ✅ Letras dibujadas");
 }
 
 function inputToTextFast() {
@@ -635,21 +696,16 @@ function generarTextosVisuales(textoCompleto, textosIndividuales) {
 
 function mousePressed() {
   if (mouseButton === LEFT) {
-    console.log("🖱️ CLICK detectado - mostrarTextos:", mostrarTextos, "textosDistorsionados:", textosDistorsionados.length);
-
     // Activar el siguiente texto distorsionado con cada click
     if (mostrarTextos && textosDistorsionados.length > 0) {
       let siguienteInactivo = textosDistorsionados.findIndex(t => !t.activo);
-      console.log("🔍 Buscando siguiente inactivo:", siguienteInactivo);
 
       if (siguienteInactivo !== -1) {
         textosDistorsionados[siguienteInactivo].activo = true;
-        console.log("✅ Texto", siguienteInactivo, "activado:", textosDistorsionados[siguienteInactivo].texto.substring(0, 30) + "...");
-      } else {
-        console.log("✅ Todos los textos están activos");
+        // Guardar el tiempo de activación para controlar las fases
+        textosDistorsionados[siguienteInactivo].tiempoActivacion = millis();
+        console.log("✅ Texto", siguienteInactivo, "activado - fases iniciadas");
       }
-    } else {
-      console.log("❌ No se pueden activar textos - condiciones no cumplidas");
     }
     return false;
   }
